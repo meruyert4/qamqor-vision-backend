@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "qamqor-vision-backend-api",
 		"name": "Qamqor Vision Backend API",
-		"description": "Complete API collection for Qamqor Vision Backend microservices architecture with auth-service and api-gateway",
+		"description": "Complete API collection for Qamqor Vision Backend microservices architecture with JWT authentication",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "qamqor-vision-backend"
 	},
@@ -11,7 +11,7 @@
 			"name": "Health Check",
 			"item": [
 				{
-					"name": "Health Check",
+					"name": "Comprehensive Health Check",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -24,15 +24,15 @@
 								"health"
 							]
 						},
-						"description": "Check if the API Gateway is running and healthy"
+						"description": "Check if all services (API Gateway, Auth Service, Database) are running and healthy"
 					},
 					"response": []
 				}
 			],
-			"description": "Health check endpoints"
+			"description": "Health check endpoints for monitoring service status"
 		},
 		{
-			"name": "Authentication",
+			"name": "Authentication (Public)",
 			"item": [
 				{
 					"name": "User Registration",
@@ -59,7 +59,7 @@
 								"register"
 							]
 						},
-						"description": "Register a new user with email, password, and personal information"
+						"description": "Register a new user account"
 					},
 					"response": []
 				},
@@ -88,7 +88,7 @@
 								"login"
 							]
 						},
-						"description": "Login user with email and password"
+						"description": "Login with email and password. Returns JWT access token (expires in 15 minutes)"
 					},
 					"response": []
 				},
@@ -133,7 +133,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"user@example.com\",\n  \"new_password\": \"newpassword123\",\n  \"token\": \"reset_token_here\"\n}"
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"new_password\": \"NewPassword123!\",\n  \"token\": \"reset-token-from-email\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/v1/reset-password",
@@ -146,21 +146,54 @@
 								"reset-password"
 							]
 						},
-						"description": "Reset password using token from forgot password email"
+						"description": "Reset password using token from email"
 					},
 					"response": []
 				}
 			],
-			"description": "Authentication related endpoints"
+			"description": "Public authentication endpoints (no JWT required)"
 		},
 		{
-			"name": "User Management",
+			"name": "User Management (Protected)",
 			"item": [
 				{
-					"name": "Get User",
+					"name": "Get Current User Profile",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"description": "JWT access token"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"me"
+							]
+						},
+						"description": "Get current user's profile information from JWT token"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"description": "JWT access token"
+							}
+						],
 						"url": {
 							"raw": "{{base_url}}/api/v1/users/{{user_id}}",
 							"host": [
@@ -173,7 +206,7 @@
 								"{{user_id}}"
 							]
 						},
-						"description": "Get user by ID"
+						"description": "Get user information by user ID"
 					},
 					"response": []
 				},
@@ -183,13 +216,18 @@
 						"method": "PUT",
 						"header": [
 							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"description": "JWT access token"
+							},
+							{
 								"key": "Content-Type",
 								"value": "application/json"
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"newemail@example.com\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Smith\",\n  \"phone_number\": \"+1234567890\",\n  \"push_notification_permission\": true\n}"
+							"raw": "{\n  \"email\": \"newemail@example.com\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Smith\",\n  \"phone_number\": \"+9876543210\",\n  \"push_notification_permission\": false\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/v1/users/{{user_id}}",
@@ -203,7 +241,7 @@
 								"{{user_id}}"
 							]
 						},
-						"description": "Update user information (all fields are optional)"
+						"description": "Update user information"
 					},
 					"response": []
 				},
@@ -213,13 +251,18 @@
 						"method": "PUT",
 						"header": [
 							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"description": "JWT access token"
+							},
+							{
 								"key": "Content-Type",
 								"value": "application/json"
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"old_password\": \"oldpassword123\",\n  \"new_password\": \"newpassword123\"\n}"
+							"raw": "{\n  \"old_password\": \"Password123!\",\n  \"new_password\": \"NewPassword123!\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/v1/users/{{user_id}}/password",
@@ -242,7 +285,13 @@
 					"name": "Delete User",
 					"request": {
 						"method": "DELETE",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"description": "JWT access token"
+							}
+						],
 						"url": {
 							"raw": "{{base_url}}/api/v1/users/{{user_id}}",
 							"host": [
@@ -255,7 +304,7 @@
 								"{{user_id}}"
 							]
 						},
-						"description": "Delete user by ID"
+						"description": "Delete user account"
 					},
 					"response": []
 				},
@@ -263,9 +312,23 @@
 					"name": "Verify User",
 					"request": {
 						"method": "POST",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"description": "JWT access token"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"verification-token\"\n}"
+						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/users/{{user_id}}/verify?token={{verification_token}}",
+							"raw": "{{base_url}}/api/v1/users/{{user_id}}/verify",
 							"host": [
 								"{{base_url}}"
 							],
@@ -275,29 +338,29 @@
 								"users",
 								"{{user_id}}",
 								"verify"
-							],
-							"query": [
-								{
-									"key": "token",
-									"value": "{{verification_token}}"
-								}
 							]
 						},
-						"description": "Verify user email with verification token"
+						"description": "Verify user email with token"
 					},
 					"response": []
 				}
 			],
-			"description": "User management endpoints"
+			"description": "User management endpoints (JWT authentication required)"
 		},
 		{
-			"name": "Login History",
+			"name": "Login History (Protected)",
 			"item": [
 				{
 					"name": "Get User Login History",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"description": "JWT access token"
+							}
+						],
 						"url": {
 							"raw": "{{base_url}}/api/v1/users/{{user_id}}/login-history?limit=10&offset=0",
 							"host": [
@@ -314,12 +377,12 @@
 								{
 									"key": "limit",
 									"value": "10",
-									"description": "Number of records to return (default: 10)"
+									"description": "Number of records to return"
 								},
 								{
 									"key": "offset",
 									"value": "0",
-									"description": "Number of records to skip (default: 0)"
+									"description": "Number of records to skip"
 								}
 							]
 						},
@@ -331,7 +394,13 @@
 					"name": "Get Recent Login History",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"description": "JWT access token"
+							}
+						],
 						"url": {
 							"raw": "{{base_url}}/api/v1/users/{{user_id}}/recent-logins",
 							"host": [
@@ -353,7 +422,13 @@
 					"name": "Get Failed Login Attempts",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"description": "JWT access token"
+							}
+						],
 						"url": {
 							"raw": "{{base_url}}/api/v1/users/{{user_id}}/failed-attempts?since=2023-01-01T00:00:00Z",
 							"host": [
@@ -370,7 +445,7 @@
 								{
 									"key": "since",
 									"value": "2023-01-01T00:00:00Z",
-									"description": "Start time in ISO format (e.g., 2023-01-01T00:00:00Z)"
+									"description": "Start time in ISO format"
 								}
 							]
 						},
@@ -379,13 +454,13 @@
 					"response": []
 				}
 			],
-			"description": "Login history and security monitoring endpoints"
+			"description": "Login history endpoints (JWT authentication required)"
 		},
 		{
 			"name": "Documentation",
 			"item": [
 				{
-					"name": "Swagger Documentation",
+					"name": "Swagger UI",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -399,7 +474,7 @@
 								"index.html"
 							]
 						},
-						"description": "Access Swagger UI documentation for the API"
+						"description": "Access Swagger UI documentation"
 					},
 					"response": []
 				}
@@ -413,16 +488,11 @@
 			"script": {
 				"type": "text/javascript",
 				"exec": [
-					""
-				]
-			}
-		},
-		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
+					"// Auto-extract access token from login response",
+					"if (pm.response && pm.response.json && pm.response.json.access_token) {",
+					"    pm.environment.set('access_token', pm.response.json.access_token);",
+					"    pm.environment.set('user_id', pm.response.json.user.id);",
+					"}"
 				]
 			}
 		}
@@ -431,26 +501,17 @@
 		{
 			"key": "base_url",
 			"value": "http://localhost:8080",
-			"type": "string",
 			"description": "Base URL for the API Gateway"
-		},
-		{
-			"key": "user_id",
-			"value": "123e4567-e89b-12d3-a456-426614174000",
-			"type": "string",
-			"description": "Sample user ID for testing"
-		},
-		{
-			"key": "verification_token",
-			"value": "verification_token_here",
-			"type": "string",
-			"description": "Verification token for user verification"
 		},
 		{
 			"key": "access_token",
 			"value": "",
-			"type": "string",
-			"description": "JWT access token for authenticated requests"
+			"description": "JWT access token (auto-populated from login response)"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"description": "User ID (auto-populated from login response)"
 		}
 	]
 }
