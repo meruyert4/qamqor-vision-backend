@@ -52,8 +52,8 @@ func (r *AuthRoutes) Register(c *gin.Context) {
 
 	resp, err := r.authClient.CreateUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -89,8 +89,8 @@ func (r *AuthRoutes) Login(c *gin.Context) {
 
 	resp, err := r.authClient.Login(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -124,8 +124,8 @@ func (r *AuthRoutes) GetUser(c *gin.Context) {
 
 	resp, err := r.authClient.GetUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -165,8 +165,8 @@ func (r *AuthRoutes) UpdateUser(c *gin.Context) {
 
 	resp, err := r.authClient.UpdateUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -201,8 +201,8 @@ func (r *AuthRoutes) ChangePassword(c *gin.Context) {
 
 	resp, err := r.authClient.ChangePassword(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -225,8 +225,8 @@ func (r *AuthRoutes) DeleteUser(c *gin.Context) {
 
 	resp, err := r.authClient.DeleteUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -256,8 +256,8 @@ func (r *AuthRoutes) VerifyUser(c *gin.Context) {
 
 	resp, err := r.authClient.VerifyUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -283,8 +283,8 @@ func (r *AuthRoutes) ForgotPassword(c *gin.Context) {
 
 	resp, err := r.authClient.ForgotPassword(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -314,8 +314,8 @@ func (r *AuthRoutes) ResetPassword(c *gin.Context) {
 
 	resp, err := r.authClient.ResetPassword(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -366,8 +366,8 @@ func (r *AuthRoutes) GetUserLoginHistory(c *gin.Context) {
 
 	resp, err := r.authClient.GetUserLoginHistory(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -402,8 +402,8 @@ func (r *AuthRoutes) GetRecentLoginHistory(c *gin.Context) {
 
 	resp, err := r.authClient.GetRecentLoginHistory(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -444,8 +444,8 @@ func (r *AuthRoutes) GetFailedLoginAttempts(c *gin.Context) {
 
 	resp, err := r.authClient.GetFailedLoginAttempts(c.Request.Context(), grpcReq)
 	if err != nil {
-		statusCode, errorMessage := HandleAuthError(err)
-		c.JSON(statusCode, gin.H{"error": errorMessage})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 

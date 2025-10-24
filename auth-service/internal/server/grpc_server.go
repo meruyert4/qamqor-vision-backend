@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"time"
 
 	"auth-service/config"
@@ -74,13 +75,22 @@ func (s *GRPCServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) 
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(createReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(createReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	user, err := s.authService.CreateUser(createReq)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		if err == service.ErrUserAlreadyExists {
+			return nil, status.Errorf(codes.AlreadyExists, "user with this email already exists")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to create user: %v", err)
 	}
 
 	return &pb.CreateUserResponse{
@@ -104,8 +114,14 @@ func (s *GRPCServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(loginReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(loginReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	// Extract IP address and user agent from context
@@ -138,8 +154,14 @@ func (s *GRPCServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.G
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(getReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(getReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	user, err := s.authService.GetUser(req.Id)
@@ -171,8 +193,14 @@ func (s *GRPCServer) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) 
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(updateReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(updateReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	user, err := s.authService.UpdateUser(req.Id, updateReq)
@@ -201,8 +229,14 @@ func (s *GRPCServer) ChangePassword(ctx context.Context, req *pb.ChangePasswordR
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(changeReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(changeReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	err := s.authService.ChangePassword(req.Id, req.OldPassword, req.NewPassword)
@@ -219,8 +253,14 @@ func (s *GRPCServer) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) 
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(deleteReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(deleteReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	err := s.authService.DeleteUser(req.Id)
@@ -237,8 +277,14 @@ func (s *GRPCServer) VerifyUser(ctx context.Context, req *pb.VerifyUserRequest) 
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(verifyReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(verifyReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	err := s.authService.VerifyUser(req.Id, req.Token)
@@ -255,8 +301,14 @@ func (s *GRPCServer) ForgotPassword(ctx context.Context, req *pb.ForgotPasswordR
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(forgotReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(forgotReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	err := s.authService.ForgotPassword(req.Email)

@@ -40,13 +40,13 @@ func (s *AuthService) CreateUser(req *models.CreateUserRequest) (*models.User, e
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, NewServiceError(ErrorTypeInternal, "failed to hash password", err)
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	// Create user
 	user, err := s.userRepo.CreateUser(req, string(hashedPassword))
 	if err != nil {
-		return nil, NewServiceError(ErrorTypeInternal, "database error", err)
+		return nil, fmt.Errorf("database error: %w", err)
 	}
 
 	// Send verification email
