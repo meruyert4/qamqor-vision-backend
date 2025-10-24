@@ -80,7 +80,7 @@ func (s *GRPCServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) 
 
 	user, err := s.authService.CreateUser(createReq)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to create user: %v", err)
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	return &pb.CreateUserResponse{
@@ -118,8 +118,7 @@ func (s *GRPCServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	}
 
 	return &pb.LoginResponse{
-		AccessToken:  response.AccessToken,
-		RefreshToken: response.RefreshToken,
+		AccessToken: response.AccessToken,
 		User: &pb.User{
 			Id:                         response.User.ID,
 			Email:                      response.User.Email,
@@ -176,24 +175,7 @@ func (s *GRPCServer) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
 	}
 
-	updates := make(map[string]interface{})
-	if req.Email != nil {
-		updates["email"] = *req.Email
-	}
-	if req.FirstName != nil {
-		updates["first_name"] = *req.FirstName
-	}
-	if req.LastName != nil {
-		updates["last_name"] = *req.LastName
-	}
-	if req.PhoneNumber != nil {
-		updates["phone_number"] = *req.PhoneNumber
-	}
-	if req.PushNotificationPermission != nil {
-		updates["push_notification_permission"] = *req.PushNotificationPermission
-	}
-
-	user, err := s.authService.UpdateUser(req.Id, updates)
+	user, err := s.authService.UpdateUser(req.Id, updateReq)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to update user: %v", err)
 	}
@@ -303,6 +285,35 @@ func (s *GRPCServer) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq
 	}
 
 	return &pb.ResetPasswordResponse{Success: true}, nil
+}
+
+// ValidateToken validates a JWT token and returns user information
+func (s *GRPCServer) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {
+	// Validate the token and extract user information
+	userID, _, err := s.authService.GetUserFromToken(req.Token)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	// Get user details from database
+	user, err := s.authService.GetUser(userID)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "user not found: %v", err)
+	}
+
+	return &pb.ValidateTokenResponse{
+		Valid: true,
+		User: &pb.User{
+			Id:                         user.ID,
+			Email:                      user.Email,
+			FirstName:                  user.FirstName,
+			LastName:                   user.LastName,
+			PhoneNumber:                getStringValue(user.PhoneNumber),
+			PushNotificationPermission: user.PushNotificationPermission,
+			Role:                       user.Role,
+			CreatedAt:                  user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		},
+	}, nil
 }
 
 func (s *GRPCServer) GetUserLoginHistory(ctx context.Context, req *pb.GetUserLoginHistoryRequest) (*pb.GetUserLoginHistoryResponse, error) {

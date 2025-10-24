@@ -14,5 +14,4 @@ COPY --from=builder /app/auth-service .
 COPY --from=builder /app/proto ./proto
 COPY --from=builder /app/auth-service/internal/migrations ./migrations
 EXPOSE 50051
-CMD ["sh", "-c", "sleep 10 && PGPASSWORD=password psql -h postgres -U user -d authdb -f ./migrations/001_create_users_table.up.sql && PGPASSWORD=password psql -h postgres -U user -d authdb -f ./migrations/002_create_user_login_history_table.up.sql && ./auth-service"]
-    
+CMD ["sh", "-c", "sleep 10 && PGPASSWORD=password psql -h postgres -U user -d authdb -q -f ./migrations/001_create_users_table.up.sql 2>/dev/null && PGPASSWORD=password psql -h postgres -U user -d authdb -q -f ./migrations/002_create_user_login_history_table.up.sql 2>/dev/null && ./auth-service"]

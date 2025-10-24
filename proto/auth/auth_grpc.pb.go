@@ -8,7 +8,6 @@ package auth
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -32,6 +31,7 @@ const (
 	AuthService_GetUserLoginHistory_FullMethodName    = "/auth.v1.AuthService/GetUserLoginHistory"
 	AuthService_GetRecentLoginHistory_FullMethodName  = "/auth.v1.AuthService/GetRecentLoginHistory"
 	AuthService_GetFailedLoginAttempts_FullMethodName = "/auth.v1.AuthService/GetFailedLoginAttempts"
+	AuthService_ValidateToken_FullMethodName          = "/auth.v1.AuthService/ValidateToken"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -50,6 +50,7 @@ type AuthServiceClient interface {
 	GetUserLoginHistory(ctx context.Context, in *GetUserLoginHistoryRequest, opts ...grpc.CallOption) (*GetUserLoginHistoryResponse, error)
 	GetRecentLoginHistory(ctx context.Context, in *GetRecentLoginHistoryRequest, opts ...grpc.CallOption) (*GetRecentLoginHistoryResponse, error)
 	GetFailedLoginAttempts(ctx context.Context, in *GetFailedLoginAttemptsRequest, opts ...grpc.CallOption) (*GetFailedLoginAttemptsResponse, error)
+	ValidateToken(ctx context.Context, in *ValidateTokenRequest, opts ...grpc.CallOption) (*ValidateTokenResponse, error)
 }
 
 type authServiceClient struct {
@@ -168,6 +169,15 @@ func (c *authServiceClient) GetFailedLoginAttempts(ctx context.Context, in *GetF
 	return out, nil
 }
 
+func (c *authServiceClient) ValidateToken(ctx context.Context, in *ValidateTokenRequest, opts ...grpc.CallOption) (*ValidateTokenResponse, error) {
+	out := new(ValidateTokenResponse)
+	err := c.cc.Invoke(ctx, AuthService_ValidateToken_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility
@@ -184,6 +194,7 @@ type AuthServiceServer interface {
 	GetUserLoginHistory(context.Context, *GetUserLoginHistoryRequest) (*GetUserLoginHistoryResponse, error)
 	GetRecentLoginHistory(context.Context, *GetRecentLoginHistoryRequest) (*GetRecentLoginHistoryResponse, error)
 	GetFailedLoginAttempts(context.Context, *GetFailedLoginAttemptsRequest) (*GetFailedLoginAttemptsResponse, error)
+	ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -226,6 +237,9 @@ func (UnimplementedAuthServiceServer) GetRecentLoginHistory(context.Context, *Ge
 }
 func (UnimplementedAuthServiceServer) GetFailedLoginAttempts(context.Context, *GetFailedLoginAttemptsRequest) (*GetFailedLoginAttemptsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFailedLoginAttempts not implemented")
+}
+func (UnimplementedAuthServiceServer) ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateToken not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 
@@ -456,6 +470,24 @@ func _AuthService_GetFailedLoginAttempts_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_ValidateToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ValidateToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ValidateToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ValidateToken(ctx, req.(*ValidateTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -510,6 +542,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFailedLoginAttempts",
 			Handler:    _AuthService_GetFailedLoginAttempts_Handler,
+		},
+		{
+			MethodName: "ValidateToken",
+			Handler:    _AuthService_ValidateToken_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

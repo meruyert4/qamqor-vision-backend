@@ -16,13 +16,16 @@ import (
 type AuthService struct {
 	userRepo         *repository.UserRepository
 	loginHistoryRepo *repository.LoginHistoryRepository
+	jwtService       *JWTService
 	config           *config.Config
 }
 
 func NewAuthService(userRepo *repository.UserRepository, loginHistoryRepo *repository.LoginHistoryRepository, config *config.Config) *AuthService {
+	jwtService := NewJWTService(config.JWTSecret)
 	return &AuthService{
 		userRepo:         userRepo,
 		loginHistoryRepo: loginHistoryRepo,
+		jwtService:       jwtService,
 		config:           config,
 	}
 }
@@ -31,19 +34,19 @@ func (s *AuthService) CreateUser(req *models.CreateUserRequest) (*models.User, e
 	// Check if user already exists
 	existingUser, _ := s.userRepo.GetUserByEmail(req.Email)
 	if existingUser != nil {
-		return nil, fmt.Errorf("user with email %s already exists", req.Email)
+		return nil, ErrUserAlreadyExists
 	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
+		return nil, NewServiceError(ErrorTypeInternal, "failed to hash password", err)
 	}
 
 	// Create user
 	user, err := s.userRepo.CreateUser(req, string(hashedPassword))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
+		return nil, NewServiceError(ErrorTypeInternal, "database error", err)
 	}
 
 	// Send verification email
@@ -78,8 +81,8 @@ func (s *AuthService) LoginWithHistory(req *models.LoginRequest, ipAddress strin
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
-	// Generate tokens
-	accessToken, err := s.generateAccessToken(user.ID)
+	// Generate JWT access token
+	accessToken, err := s.jwtService.GenerateAccessToken(user.ID, user.Email)
 	if err != nil {
 		// Log failed login attempt
 		reason := "token generation failed"
@@ -87,21 +90,12 @@ func (s *AuthService) LoginWithHistory(req *models.LoginRequest, ipAddress strin
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	refreshToken, err := s.generateRefreshToken(user.ID)
-	if err != nil {
-		// Log failed login attempt
-		reason := "refresh token generation failed"
-		s.logLoginAttempt(user.ID, ipAddress, userAgent, models.LoginStatusFailed, &reason)
-		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
-	}
-
 	// Log successful login
 	s.logLoginAttempt(user.ID, ipAddress, userAgent, models.LoginStatusSuccess, nil)
 
 	return &models.LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		User:         user,
+		AccessToken: accessToken,
+		User:        user,
 	}, nil
 }
 
@@ -154,7 +148,14 @@ func (s *AuthService) GetFailedLoginAttempts(userID string, since time.Time) ([]
 	return s.loginHistoryRepo.GetFailedLoginAttempts(userID, since)
 }
 
-func (s *AuthService) UpdateUser(id string, updates map[string]interface{}) (*models.User, error) {
+func (s *AuthService) UpdateUser(id string, req *models.UpdateUserRequest) (*models.User, error) {
+	updates := map[string]interface{}{
+		"email":                        req.Email,
+		"first_name":                   req.FirstName,
+		"last_name":                    req.LastName,
+		"phone_number":                 req.PhoneNumber,
+		"push_notification_permission": req.PushNotificationPermission,
+	}
 	return s.userRepo.UpdateUser(id, updates)
 }
 
@@ -235,33 +236,36 @@ func (s *AuthService) ResetPassword(email, newPassword, token string) error {
 	return err
 }
 
-func (s *AuthService) generateAccessToken(userID string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
-		"type":    "access",
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.config.JWTSecret))
+// ValidateJWTToken validates a JWT token and returns the user ID
+// This method is used by the API gateway to validate tokens
+func (s *AuthService) ValidateJWTToken(tokenString string) (string, error) {
+	return s.jwtService.ExtractUserID(tokenString)
 }
 
-func (s *AuthService) generateRefreshToken(userID string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
-		"type":    "refresh",
+// GetUserFromToken extracts user information from a JWT token
+// Returns user ID and email from token claims
+func (s *AuthService) GetUserFromToken(tokenString string) (userID, email string, err error) {
+	claims, err := s.jwtService.ValidateToken(tokenString)
+	if err != nil {
+		return "", "", err
 	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.config.JWTSecret))
+	return claims.UserID, claims.Email, nil
 }
 
 func (s *AuthService) generateResetToken(userID string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour).Unix(),
-		"type":    "reset",
+	// Use JWT service for reset tokens with 1 hour expiration
+	expirationTime := time.Now().Add(time.Hour)
+
+	claims := &JWTClaims{
+		UserID: userID,
+		Email:  "", // Reset tokens don't need email
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Issuer:    "qamqor-vision-auth",
+			Subject:   userID,
+		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -317,10 +321,19 @@ func (s *AuthService) sendResetPasswordEmail(user *models.User, resetToken strin
 }
 
 func (s *AuthService) generateVerificationToken(userID string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
-		"type":    "verification",
+	// Use JWT service for verification tokens with 24 hour expiration
+	expirationTime := time.Now().Add(time.Hour * 24)
+
+	claims := &JWTClaims{
+		UserID: userID,
+		Email:  "", // Verification tokens don't need email
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Issuer:    "qamqor-vision-auth",
+			Subject:   userID,
+		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

@@ -33,6 +33,11 @@ func main() {
 		authServiceAddr = "localhost:50051"
 	}
 
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		databaseURL = "postgres://user:password@postgres:5432/authdb?sslmode=disable"
+	}
+
 	// Initialize gRPC client
 	authClient, err := client.NewAuthClient(authServiceAddr)
 	if err != nil {
@@ -41,7 +46,7 @@ func main() {
 	defer authClient.Close()
 
 	// Setup router
-	router := app.SetupRouter(authClient)
+	router := app.SetupRouter(authClient, authServiceAddr, databaseURL)
 
 	// Start server
 	log.Printf("Starting API Gateway on port %s", port)

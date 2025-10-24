@@ -22,7 +22,7 @@ func StartServer() error {
 	defer authClient.Close()
 
 	// Setup router
-	router := SetupRouter(authClient)
+	router := SetupRouter(authClient, cfg.AuthServiceAddr, cfg.DatabaseURL)
 
 	// Start server
 	log.Printf("Starting API Gateway on port %s", cfg.Port)

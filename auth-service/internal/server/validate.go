@@ -10,33 +10,24 @@ import (
 
 var validate *validator.Validate
 
-func init() {
-	validate = validator.New()
-
-	// Register custom validators
-	validate.RegisterValidation("password", validatePassword)
-	validate.RegisterValidation("name", validateName)
-	validate.RegisterValidation("uuid", validateUUID)
-}
-
 // Custom password validator
 func validatePassword(fl validator.FieldLevel) bool {
 	password := fl.Field().String()
 
-	// Minimum 8 characters
+	// Check minimum length
 	if len(password) < 8 {
-		return false
-	}
-
-	// Must contain at least one lowercase letter
-	hasLower, _ := regexp.MatchString(`[a-z]`, password)
-	if !hasLower {
 		return false
 	}
 
 	// Must contain at least one uppercase letter
 	hasUpper, _ := regexp.MatchString(`[A-Z]`, password)
 	if !hasUpper {
+		return false
+	}
+
+	// Must contain at least one lowercase letter
+	hasLower, _ := regexp.MatchString(`[a-z]`, password)
+	if !hasLower {
 		return false
 	}
 
@@ -48,8 +39,8 @@ func validatePassword(fl validator.FieldLevel) bool {
 
 	// Must contain at least one special character
 	hasSpecial, _ := regexp.MatchString(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`, password)
-	if hasSpecial {
-		return true
+	if !hasSpecial {
+		return false
 	}
 
 	return true
@@ -113,6 +104,15 @@ func validateUUID(fl validator.FieldLevel) bool {
 	}
 
 	return true
+}
+
+func init() {
+	validate = validator.New()
+
+	// Register custom validators
+	validate.RegisterValidation("password", validatePassword)
+	validate.RegisterValidation("name", validateName)
+	validate.RegisterValidation("uuid", validateUUID)
 }
 
 // ValidationError represents a validation error
