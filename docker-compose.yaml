@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: authdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./auth-service/internal/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+
+  auth-service:
+    container_name: auth-service
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    env_file:
+      - auth-service/.env
+    ports:
+      - "50051:50051"
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
+  api-gateway:
+    container_name: api-gateway
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    env_file:
+      - api-gateway/.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
