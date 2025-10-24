@@ -52,7 +52,8 @@ func (r *AuthRoutes) Register(c *gin.Context) {
 
 	resp, err := r.authClient.CreateUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -88,15 +89,15 @@ func (r *AuthRoutes) Login(c *gin.Context) {
 
 	resp, err := r.authClient.Login(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":       "Login successful",
-		"access_token":  resp.AccessToken,
-		"refresh_token": resp.RefreshToken,
-		"user":          resp.User,
+		"message":      "Login successful",
+		"access_token": resp.AccessToken,
+		"user":         resp.User,
 	})
 }
 
@@ -123,7 +124,8 @@ func (r *AuthRoutes) GetUser(c *gin.Context) {
 
 	resp, err := r.authClient.GetUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -163,7 +165,8 @@ func (r *AuthRoutes) UpdateUser(c *gin.Context) {
 
 	resp, err := r.authClient.UpdateUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -198,7 +201,8 @@ func (r *AuthRoutes) ChangePassword(c *gin.Context) {
 
 	resp, err := r.authClient.ChangePassword(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to change password"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -221,7 +225,8 @@ func (r *AuthRoutes) DeleteUser(c *gin.Context) {
 
 	resp, err := r.authClient.DeleteUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -251,7 +256,8 @@ func (r *AuthRoutes) VerifyUser(c *gin.Context) {
 
 	resp, err := r.authClient.VerifyUser(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to verify user"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -277,7 +283,8 @@ func (r *AuthRoutes) ForgotPassword(c *gin.Context) {
 
 	resp, err := r.authClient.ForgotPassword(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process forgot password"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -307,7 +314,8 @@ func (r *AuthRoutes) ResetPassword(c *gin.Context) {
 
 	resp, err := r.authClient.ResetPassword(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to reset password"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -358,7 +366,8 @@ func (r *AuthRoutes) GetUserLoginHistory(c *gin.Context) {
 
 	resp, err := r.authClient.GetUserLoginHistory(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user login history"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -393,7 +402,8 @@ func (r *AuthRoutes) GetRecentLoginHistory(c *gin.Context) {
 
 	resp, err := r.authClient.GetRecentLoginHistory(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get recent login history"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -434,7 +444,8 @@ func (r *AuthRoutes) GetFailedLoginAttempts(c *gin.Context) {
 
 	resp, err := r.authClient.GetFailedLoginAttempts(c.Request.Context(), grpcReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get failed login attempts"})
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
 		return
 	}
 
@@ -442,5 +453,28 @@ func (r *AuthRoutes) GetFailedLoginAttempts(c *gin.Context) {
 		"failed_attempts": resp.FailedAttempts,
 		"success":         true,
 		"since":           since,
+	})
+}
+
+// GetProfile godoc
+// @Summary Get Current User Profile
+// @Description Get current user's profile information from JWT token
+// @Tags Authentication
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} models.ErrorResponse
+// @Router /api/v1/users/me [get]
+func (r *AuthRoutes) GetProfile(c *gin.Context) {
+	// Get user information from JWT middleware context
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user":    user,
+		"message": "Profile retrieved successfully",
 	})
 }

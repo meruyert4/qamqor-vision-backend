@@ -38,6 +38,8 @@ func (r *UserRepository) CreateUser(user *models.CreateUserRequest, passwordHash
 		&createdUser.PhoneNumber, &createdUser.PushNotificationPermission, &createdUser.Role,
 		&createdUser.IsVerified, &createdUser.CreatedAt, &createdUser.UpdatedAt)
 
+	fmt.Println("createdUser", createdUser)
+	fmt.Println("err", err)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}

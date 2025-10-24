@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"time"
 
 	"auth-service/config"
@@ -74,12 +75,21 @@ func (s *GRPCServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) 
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(createReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(createReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	user, err := s.authService.CreateUser(createReq)
 	if err != nil {
+		if err == service.ErrUserAlreadyExists {
+			return nil, status.Errorf(codes.AlreadyExists, "user with this email already exists")
+		}
 		return nil, status.Errorf(codes.Internal, "failed to create user: %v", err)
 	}
 
@@ -104,8 +114,14 @@ func (s *GRPCServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(loginReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(loginReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	// Extract IP address and user agent from context
@@ -118,8 +134,7 @@ func (s *GRPCServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	}
 
 	return &pb.LoginResponse{
-		AccessToken:  response.AccessToken,
-		RefreshToken: response.RefreshToken,
+		AccessToken: response.AccessToken,
 		User: &pb.User{
 			Id:                         response.User.ID,
 			Email:                      response.User.Email,
@@ -139,8 +154,14 @@ func (s *GRPCServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.G
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(getReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(getReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	user, err := s.authService.GetUser(req.Id)
@@ -172,28 +193,17 @@ func (s *GRPCServer) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) 
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(updateReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(updateReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
-	updates := make(map[string]interface{})
-	if req.Email != nil {
-		updates["email"] = *req.Email
-	}
-	if req.FirstName != nil {
-		updates["first_name"] = *req.FirstName
-	}
-	if req.LastName != nil {
-		updates["last_name"] = *req.LastName
-	}
-	if req.PhoneNumber != nil {
-		updates["phone_number"] = *req.PhoneNumber
-	}
-	if req.PushNotificationPermission != nil {
-		updates["push_notification_permission"] = *req.PushNotificationPermission
-	}
-
-	user, err := s.authService.UpdateUser(req.Id, updates)
+	user, err := s.authService.UpdateUser(req.Id, updateReq)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to update user: %v", err)
 	}
@@ -219,8 +229,14 @@ func (s *GRPCServer) ChangePassword(ctx context.Context, req *pb.ChangePasswordR
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(changeReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(changeReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	err := s.authService.ChangePassword(req.Id, req.OldPassword, req.NewPassword)
@@ -237,8 +253,14 @@ func (s *GRPCServer) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) 
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(deleteReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(deleteReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	err := s.authService.DeleteUser(req.Id)
@@ -255,8 +277,14 @@ func (s *GRPCServer) VerifyUser(ctx context.Context, req *pb.VerifyUserRequest) 
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(verifyReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(verifyReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	err := s.authService.VerifyUser(req.Id, req.Token)
@@ -273,8 +301,14 @@ func (s *GRPCServer) ForgotPassword(ctx context.Context, req *pb.ForgotPasswordR
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(forgotReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	if validationErrors := ValidateStruct(forgotReq); len(validationErrors) > 0 {
+		// Format validation errors for gRPC response
+		var errorMessages []string
+		for _, err := range validationErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		formattedError := strings.Join(errorMessages, "; ")
+		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
 	err := s.authService.ForgotPassword(req.Email)
@@ -303,6 +337,35 @@ func (s *GRPCServer) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq
 	}
 
 	return &pb.ResetPasswordResponse{Success: true}, nil
+}
+
+// ValidateToken validates a JWT token and returns user information
+func (s *GRPCServer) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {
+	// Validate the token and extract user information
+	userID, _, err := s.authService.GetUserFromToken(req.Token)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	// Get user details from database
+	user, err := s.authService.GetUser(userID)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "user not found: %v", err)
+	}
+
+	return &pb.ValidateTokenResponse{
+		Valid: true,
+		User: &pb.User{
+			Id:                         user.ID,
+			Email:                      user.Email,
+			FirstName:                  user.FirstName,
+			LastName:                   user.LastName,
+			PhoneNumber:                getStringValue(user.PhoneNumber),
+			PushNotificationPermission: user.PushNotificationPermission,
+			Role:                       user.Role,
+			CreatedAt:                  user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		},
+	}, nil
 }
 
 func (s *GRPCServer) GetUserLoginHistory(ctx context.Context, req *pb.GetUserLoginHistoryRequest) (*pb.GetUserLoginHistoryResponse, error) {

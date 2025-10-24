@@ -1446,6 +1446,103 @@ func (x *GetFailedLoginAttemptsResponse) GetFailedAttempts() []*UserLoginHistory
 	return nil
 }
 
+// JWT Token Validation
+type ValidateTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateTokenRequest) Reset() {
+	*x = ValidateTokenRequest{}
+	mi := &file_auth_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateTokenRequest) ProtoMessage() {}
+
+func (x *ValidateTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateTokenRequest.ProtoReflect.Descriptor instead.
+func (*ValidateTokenRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ValidateTokenRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type ValidateTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Valid         bool                   `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`
+	User          *User                  `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateTokenResponse) Reset() {
+	*x = ValidateTokenResponse{}
+	mi := &file_auth_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateTokenResponse) ProtoMessage() {}
+
+func (x *ValidateTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateTokenResponse.ProtoReflect.Descriptor instead.
+func (*ValidateTokenResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ValidateTokenResponse) GetValid() bool {
+	if x != nil {
+		return x.Valid
+	}
+	return false
+}
+
+func (x *ValidateTokenResponse) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
@@ -1551,7 +1648,12 @@ const file_auth_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05since\x18\x02 \x01(\tR\x05since\"d\n" +
 	"\x1eGetFailedLoginAttemptsResponse\x12B\n" +
-	"\x0ffailed_attempts\x18\x01 \x03(\v2\x19.auth.v1.UserLoginHistoryR\x0efailedAttempts2\xca\a\n" +
+	"\x0ffailed_attempts\x18\x01 \x03(\v2\x19.auth.v1.UserLoginHistoryR\x0efailedAttempts\",\n" +
+	"\x14ValidateTokenRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"P\n" +
+	"\x15ValidateTokenResponse\x12\x14\n" +
+	"\x05valid\x18\x01 \x01(\bR\x05valid\x12!\n" +
+	"\x04user\x18\x02 \x01(\v2\r.auth.v1.UserR\x04user2\x9a\b\n" +
 	"\vAuthService\x12E\n" +
 	"\n" +
 	"CreateUser\x12\x1a.auth.v1.CreateUserRequest\x1a\x1b.auth.v1.CreateUserResponse\x126\n" +
@@ -1568,7 +1670,8 @@ const file_auth_proto_rawDesc = "" +
 	"\rResetPassword\x12\x1d.auth.v1.ResetPasswordRequest\x1a\x1e.auth.v1.ResetPasswordResponse\x12`\n" +
 	"\x13GetUserLoginHistory\x12#.auth.v1.GetUserLoginHistoryRequest\x1a$.auth.v1.GetUserLoginHistoryResponse\x12f\n" +
 	"\x15GetRecentLoginHistory\x12%.auth.v1.GetRecentLoginHistoryRequest\x1a&.auth.v1.GetRecentLoginHistoryResponse\x12i\n" +
-	"\x16GetFailedLoginAttempts\x12&.auth.v1.GetFailedLoginAttemptsRequest\x1a'.auth.v1.GetFailedLoginAttemptsResponseB7Z5github.com/meruyert4/qamqor-vision-backend/proto/authb\x06proto3"
+	"\x16GetFailedLoginAttempts\x12&.auth.v1.GetFailedLoginAttemptsRequest\x1a'.auth.v1.GetFailedLoginAttemptsResponse\x12N\n" +
+	"\rValidateToken\x12\x1d.auth.v1.ValidateTokenRequest\x1a\x1e.auth.v1.ValidateTokenResponseB7Z5github.com/meruyert4/qamqor-vision-backend/proto/authb\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once
@@ -1582,7 +1685,7 @@ func file_auth_proto_rawDescGZIP() []byte {
 	return file_auth_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_auth_proto_goTypes = []any{
 	(*User)(nil),                           // 0: auth.v1.User
 	(*CreateUserRequest)(nil),              // 1: auth.v1.CreateUserRequest
@@ -1610,6 +1713,8 @@ var file_auth_proto_goTypes = []any{
 	(*GetRecentLoginHistoryResponse)(nil),  // 23: auth.v1.GetRecentLoginHistoryResponse
 	(*GetFailedLoginAttemptsRequest)(nil),  // 24: auth.v1.GetFailedLoginAttemptsRequest
 	(*GetFailedLoginAttemptsResponse)(nil), // 25: auth.v1.GetFailedLoginAttemptsResponse
+	(*ValidateTokenRequest)(nil),           // 26: auth.v1.ValidateTokenRequest
+	(*ValidateTokenResponse)(nil),          // 27: auth.v1.ValidateTokenResponse
 }
 var file_auth_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.CreateUserResponse.user:type_name -> auth.v1.User
@@ -1619,35 +1724,38 @@ var file_auth_proto_depIdxs = []int32{
 	19, // 4: auth.v1.GetUserLoginHistoryResponse.login_history:type_name -> auth.v1.UserLoginHistory
 	19, // 5: auth.v1.GetRecentLoginHistoryResponse.login_history:type_name -> auth.v1.UserLoginHistory
 	19, // 6: auth.v1.GetFailedLoginAttemptsResponse.failed_attempts:type_name -> auth.v1.UserLoginHistory
-	1,  // 7: auth.v1.AuthService.CreateUser:input_type -> auth.v1.CreateUserRequest
-	3,  // 8: auth.v1.AuthService.Login:input_type -> auth.v1.LoginRequest
-	5,  // 9: auth.v1.AuthService.GetUser:input_type -> auth.v1.GetUserRequest
-	7,  // 10: auth.v1.AuthService.UpdateUser:input_type -> auth.v1.UpdateUserRequest
-	9,  // 11: auth.v1.AuthService.ChangePassword:input_type -> auth.v1.ChangePasswordRequest
-	11, // 12: auth.v1.AuthService.DeleteUser:input_type -> auth.v1.DeleteUserRequest
-	13, // 13: auth.v1.AuthService.VerifyUser:input_type -> auth.v1.VerifyUserRequest
-	15, // 14: auth.v1.AuthService.ForgotPassword:input_type -> auth.v1.ForgotPasswordRequest
-	17, // 15: auth.v1.AuthService.ResetPassword:input_type -> auth.v1.ResetPasswordRequest
-	20, // 16: auth.v1.AuthService.GetUserLoginHistory:input_type -> auth.v1.GetUserLoginHistoryRequest
-	22, // 17: auth.v1.AuthService.GetRecentLoginHistory:input_type -> auth.v1.GetRecentLoginHistoryRequest
-	24, // 18: auth.v1.AuthService.GetFailedLoginAttempts:input_type -> auth.v1.GetFailedLoginAttemptsRequest
-	2,  // 19: auth.v1.AuthService.CreateUser:output_type -> auth.v1.CreateUserResponse
-	4,  // 20: auth.v1.AuthService.Login:output_type -> auth.v1.LoginResponse
-	6,  // 21: auth.v1.AuthService.GetUser:output_type -> auth.v1.GetUserResponse
-	8,  // 22: auth.v1.AuthService.UpdateUser:output_type -> auth.v1.UpdateUserResponse
-	10, // 23: auth.v1.AuthService.ChangePassword:output_type -> auth.v1.ChangePasswordResponse
-	12, // 24: auth.v1.AuthService.DeleteUser:output_type -> auth.v1.DeleteUserResponse
-	14, // 25: auth.v1.AuthService.VerifyUser:output_type -> auth.v1.VerifyUserResponse
-	16, // 26: auth.v1.AuthService.ForgotPassword:output_type -> auth.v1.ForgotPasswordResponse
-	18, // 27: auth.v1.AuthService.ResetPassword:output_type -> auth.v1.ResetPasswordResponse
-	21, // 28: auth.v1.AuthService.GetUserLoginHistory:output_type -> auth.v1.GetUserLoginHistoryResponse
-	23, // 29: auth.v1.AuthService.GetRecentLoginHistory:output_type -> auth.v1.GetRecentLoginHistoryResponse
-	25, // 30: auth.v1.AuthService.GetFailedLoginAttempts:output_type -> auth.v1.GetFailedLoginAttemptsResponse
-	19, // [19:31] is the sub-list for method output_type
-	7,  // [7:19] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	0,  // 7: auth.v1.ValidateTokenResponse.user:type_name -> auth.v1.User
+	1,  // 8: auth.v1.AuthService.CreateUser:input_type -> auth.v1.CreateUserRequest
+	3,  // 9: auth.v1.AuthService.Login:input_type -> auth.v1.LoginRequest
+	5,  // 10: auth.v1.AuthService.GetUser:input_type -> auth.v1.GetUserRequest
+	7,  // 11: auth.v1.AuthService.UpdateUser:input_type -> auth.v1.UpdateUserRequest
+	9,  // 12: auth.v1.AuthService.ChangePassword:input_type -> auth.v1.ChangePasswordRequest
+	11, // 13: auth.v1.AuthService.DeleteUser:input_type -> auth.v1.DeleteUserRequest
+	13, // 14: auth.v1.AuthService.VerifyUser:input_type -> auth.v1.VerifyUserRequest
+	15, // 15: auth.v1.AuthService.ForgotPassword:input_type -> auth.v1.ForgotPasswordRequest
+	17, // 16: auth.v1.AuthService.ResetPassword:input_type -> auth.v1.ResetPasswordRequest
+	20, // 17: auth.v1.AuthService.GetUserLoginHistory:input_type -> auth.v1.GetUserLoginHistoryRequest
+	22, // 18: auth.v1.AuthService.GetRecentLoginHistory:input_type -> auth.v1.GetRecentLoginHistoryRequest
+	24, // 19: auth.v1.AuthService.GetFailedLoginAttempts:input_type -> auth.v1.GetFailedLoginAttemptsRequest
+	26, // 20: auth.v1.AuthService.ValidateToken:input_type -> auth.v1.ValidateTokenRequest
+	2,  // 21: auth.v1.AuthService.CreateUser:output_type -> auth.v1.CreateUserResponse
+	4,  // 22: auth.v1.AuthService.Login:output_type -> auth.v1.LoginResponse
+	6,  // 23: auth.v1.AuthService.GetUser:output_type -> auth.v1.GetUserResponse
+	8,  // 24: auth.v1.AuthService.UpdateUser:output_type -> auth.v1.UpdateUserResponse
+	10, // 25: auth.v1.AuthService.ChangePassword:output_type -> auth.v1.ChangePasswordResponse
+	12, // 26: auth.v1.AuthService.DeleteUser:output_type -> auth.v1.DeleteUserResponse
+	14, // 27: auth.v1.AuthService.VerifyUser:output_type -> auth.v1.VerifyUserResponse
+	16, // 28: auth.v1.AuthService.ForgotPassword:output_type -> auth.v1.ForgotPasswordResponse
+	18, // 29: auth.v1.AuthService.ResetPassword:output_type -> auth.v1.ResetPasswordResponse
+	21, // 30: auth.v1.AuthService.GetUserLoginHistory:output_type -> auth.v1.GetUserLoginHistoryResponse
+	23, // 31: auth.v1.AuthService.GetRecentLoginHistory:output_type -> auth.v1.GetRecentLoginHistoryResponse
+	25, // 32: auth.v1.AuthService.GetFailedLoginAttempts:output_type -> auth.v1.GetFailedLoginAttemptsResponse
+	27, // 33: auth.v1.AuthService.ValidateToken:output_type -> auth.v1.ValidateTokenResponse
+	21, // [21:34] is the sub-list for method output_type
+	8,  // [8:21] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_auth_proto_init() }
@@ -1663,7 +1771,7 @@ func file_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

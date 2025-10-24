@@ -79,3 +79,7 @@ func (c *AuthClient) GetRecentLoginHistory(ctx context.Context, req *pb.GetRecen
 func (c *AuthClient) GetFailedLoginAttempts(ctx context.Context, req *pb.GetFailedLoginAttemptsRequest) (*pb.GetFailedLoginAttemptsResponse, error) {
 	return c.client.GetFailedLoginAttempts(ctx, req)
 }
+
+func (c *AuthClient) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {
+	return c.client.ValidateToken(ctx, req)
+}

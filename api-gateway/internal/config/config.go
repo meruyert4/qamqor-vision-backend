@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Port            string
 	AuthServiceAddr string
+	DatabaseURL     string
 }
 
 func Load() (*Config, error) {
@@ -19,6 +20,7 @@ func Load() (*Config, error) {
 	return &Config{
 		Port:            getEnv("PORT", "8080"),
 		AuthServiceAddr: getEnv("AUTH_SERVICE_ADDR", "auth-service:50051"),
+		DatabaseURL:     getEnv("DATABASE_URL", "postgres://user:password@postgres:5432/authdb?sslmode=disable"),
 	}, nil
 }
 

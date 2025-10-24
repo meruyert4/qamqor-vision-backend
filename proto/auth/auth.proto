@@ -18,6 +18,7 @@ service AuthService {
     rpc GetUserLoginHistory(GetUserLoginHistoryRequest) returns (GetUserLoginHistoryResponse);
     rpc GetRecentLoginHistory(GetRecentLoginHistoryRequest) returns (GetRecentLoginHistoryResponse);
     rpc GetFailedLoginAttempts(GetFailedLoginAttemptsRequest) returns (GetFailedLoginAttemptsResponse);
+    rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
 }
 
 message User {
@@ -165,4 +166,14 @@ message GetFailedLoginAttemptsRequest {
 
 message GetFailedLoginAttemptsResponse {
     repeated UserLoginHistory failed_attempts = 1;
+}
+
+// JWT Token Validation
+message ValidateTokenRequest {
+    string token = 1;
+}
+
+message ValidateTokenResponse {
+    bool valid = 1;
+    User user = 2;
 }

@@ -10,33 +10,24 @@ import (
 
 var validate *validator.Validate
 
-func init() {
-	validate = validator.New()
-
-	// Register custom validators
-	validate.RegisterValidation("password", validatePassword)
-	validate.RegisterValidation("name", validateName)
-	validate.RegisterValidation("uuid", validateUUID)
-}
-
 // Custom password validator
 func validatePassword(fl validator.FieldLevel) bool {
 	password := fl.Field().String()
 
-	// Minimum 8 characters
+	// Check minimum length
 	if len(password) < 8 {
-		return false
-	}
-
-	// Must contain at least one lowercase letter
-	hasLower, _ := regexp.MatchString(`[a-z]`, password)
-	if !hasLower {
 		return false
 	}
 
 	// Must contain at least one uppercase letter
 	hasUpper, _ := regexp.MatchString(`[A-Z]`, password)
 	if !hasUpper {
+		return false
+	}
+
+	// Must contain at least one lowercase letter
+	hasLower, _ := regexp.MatchString(`[a-z]`, password)
+	if !hasLower {
 		return false
 	}
 
@@ -48,8 +39,8 @@ func validatePassword(fl validator.FieldLevel) bool {
 
 	// Must contain at least one special character
 	hasSpecial, _ := regexp.MatchString(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`, password)
-	if hasSpecial {
-		return true
+	if !hasSpecial {
+		return false
 	}
 
 	return true
@@ -115,6 +106,27 @@ func validateUUID(fl validator.FieldLevel) bool {
 	return true
 }
 
+func validateEmail(fl validator.FieldLevel) bool {
+	email := fl.Field().String()
+	// Check if email is empty first
+	if email == "" {
+		return false
+	}
+	// Use a more comprehensive email regex
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	return emailRegex.MatchString(email)
+}
+
+func init() {
+	validate = validator.New()
+
+	// Register custom validators
+	validate.RegisterValidation("password", validatePassword)
+	validate.RegisterValidation("name", validateName)
+	validate.RegisterValidation("uuid", validateUUID)
+	validate.RegisterValidation("email", validateEmail)
+}
+
 // ValidationError represents a validation error
 type ValidationError struct {
 	Field   string `json:"field"`
@@ -136,13 +148,13 @@ func ValidateStruct(s interface{}) []ValidationError {
 			case "required":
 				message = fmt.Sprintf("%s is required", err.Field())
 			case "email":
-				message = fmt.Sprintf("%s must be a valid email address", err.Field())
+				message = "Please provide a valid email address"
 			case "password":
-				message = fmt.Sprintf("%s must be at least 8 characters long and contain uppercase, lowercase, number, and special character", err.Field())
+				message = "Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character"
 			case "name":
-				message = fmt.Sprintf("%s must contain only letters, spaces, hyphens, and apostrophes (2-50 characters)", err.Field())
+				message = "Name must contain only letters, spaces, hyphens, and apostrophes (2-50 characters)"
 			case "uuid":
-				message = fmt.Sprintf("%s must be a valid UUID", err.Field())
+				message = "Please provide a valid ID"
 			case "min":
 				message = fmt.Sprintf("%s must be at least %s characters long", err.Field(), err.Param())
 			case "max":
