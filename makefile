@@ -20,7 +20,7 @@ help:
 	@echo "  $(PINK)make swagger$(RESET)    - Generate Swagger documentation"
 	@echo ""
 	@echo "$(PINK)Documentation:$(RESET)"
-	@echo "  $(PINK)Swagger API Docs:$(RESET) http://localhost:8080/swagger/"
+	@echo "  $(PINK)Swagger API Docs:$(RESET) http://localhost:8080/swagger/index.html"
 	@echo ""
 
 up:
