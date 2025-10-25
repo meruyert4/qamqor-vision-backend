@@ -72,6 +72,13 @@ func JWTMiddleware(authClient *client.AuthClient) gin.HandlerFunc {
 
 		// Attach user information to the request context
 		ctx := context.WithValue(c.Request.Context(), UserContextKey, resp.User.Id)
+
+		// Store headers in context for gRPC propagation
+		headers := map[string][]string{
+			"Authorization": {authHeader},
+		}
+		ctx = context.WithValue(ctx, "headers", headers)
+
 		c.Request = c.Request.WithContext(ctx)
 
 		// Store user information in Gin context for easy access

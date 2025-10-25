@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_name VARCHAR(100) NOT NULL,
     phone_number VARCHAR(20),
     push_notification_permission BOOLEAN DEFAULT false,
-    role VARCHAR(50) DEFAULT 'user',
+    role VARCHAR(50) DEFAULT 'user' CHECK (role IN ('admin', 'user', 'manager', 'operator', 'analyst')),
     is_verified BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

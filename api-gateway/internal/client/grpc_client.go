@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 type AuthClient struct {
@@ -32,6 +33,23 @@ func (c *AuthClient) Close() error {
 	return c.conn.Close()
 }
 
+// propagateHeaders copies specific headers from incoming context to outgoing gRPC context
+func (c *AuthClient) propagateHeaders(ctx context.Context) context.Context {
+	md := metadata.New(nil)
+
+	// Try to get headers from incoming Gin context
+	if headers, ok := ctx.Value("headers").(map[string][]string); ok {
+		for key, values := range headers {
+			// Convert header keys to lowercase for gRPC metadata
+			if key == "Authorization" || key == "authorization" {
+				md.Set("authorization", values...)
+			}
+		}
+	}
+
+	return metadata.NewOutgoingContext(ctx, md)
+}
+
 func (c *AuthClient) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
 	return c.client.CreateUser(ctx, req)
 }
@@ -41,19 +59,19 @@ func (c *AuthClient) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 }
 
 func (c *AuthClient) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUserResponse, error) {
-	return c.client.GetUser(ctx, req)
+	return c.client.GetUser(c.propagateHeaders(ctx), req)
 }
 
 func (c *AuthClient) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UpdateUserResponse, error) {
-	return c.client.UpdateUser(ctx, req)
+	return c.client.UpdateUser(c.propagateHeaders(ctx), req)
 }
 
 func (c *AuthClient) ChangePassword(ctx context.Context, req *pb.ChangePasswordRequest) (*pb.ChangePasswordResponse, error) {
-	return c.client.ChangePassword(ctx, req)
+	return c.client.ChangePassword(c.propagateHeaders(ctx), req)
 }
 
 func (c *AuthClient) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
-	return c.client.DeleteUser(ctx, req)
+	return c.client.DeleteUser(c.propagateHeaders(ctx), req)
 }
 
 func (c *AuthClient) VerifyUser(ctx context.Context, req *pb.VerifyUserRequest) (*pb.VerifyUserResponse, error) {
@@ -69,15 +87,15 @@ func (c *AuthClient) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq
 }
 
 func (c *AuthClient) GetUserLoginHistory(ctx context.Context, req *pb.GetUserLoginHistoryRequest) (*pb.GetUserLoginHistoryResponse, error) {
-	return c.client.GetUserLoginHistory(ctx, req)
+	return c.client.GetUserLoginHistory(c.propagateHeaders(ctx), req)
 }
 
 func (c *AuthClient) GetRecentLoginHistory(ctx context.Context, req *pb.GetRecentLoginHistoryRequest) (*pb.GetRecentLoginHistoryResponse, error) {
-	return c.client.GetRecentLoginHistory(ctx, req)
+	return c.client.GetRecentLoginHistory(c.propagateHeaders(ctx), req)
 }
 
 func (c *AuthClient) GetFailedLoginAttempts(ctx context.Context, req *pb.GetFailedLoginAttemptsRequest) (*pb.GetFailedLoginAttemptsResponse, error) {
-	return c.client.GetFailedLoginAttempts(ctx, req)
+	return c.client.GetFailedLoginAttempts(c.propagateHeaders(ctx), req)
 }
 
 func (c *AuthClient) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {

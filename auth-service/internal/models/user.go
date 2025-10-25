@@ -25,6 +25,7 @@ type CreateUserRequest struct {
 	LastName                   string  `json:"last_name" validate:"required,name"`
 	PhoneNumber                *string `json:"phone_number,omitempty" validate:"omitempty,min=10,max=15"`
 	PushNotificationPermission bool    `json:"push_notification_permission"`
+	Role                       string  `json:"role,omitempty" validate:"omitempty,role"`
 }
 
 type LoginRequest struct {
@@ -44,6 +45,7 @@ type UpdateUserRequest struct {
 	LastName                   *string `json:"last_name,omitempty" validate:"omitempty,name"`
 	PhoneNumber                *string `json:"phone_number,omitempty" validate:"omitempty,min=10,max=15"`
 	PushNotificationPermission *bool   `json:"push_notification_permission,omitempty"`
+	Role                       *string `json:"role,omitempty" validate:"omitempty,role"`
 }
 
 // ChangePasswordRequest represents the request to change password
@@ -95,4 +97,34 @@ type GetRecentLoginHistoryRequest struct {
 type GetFailedLoginAttemptsRequest struct {
 	UserID string `json:"user_id" validate:"required,uuid"`
 	Since  string `json:"since" validate:"required"`
+}
+
+// Role constants
+const (
+	AdminRole    string = "admin"
+	UserRole     string = "user"
+	ManagerRole  string = "manager"
+	OperatorRole string = "operator"
+	AnalystRole  string = "analyst"
+)
+
+// IsValidRole checks if the provided role is valid
+func IsValidRole(role string) bool {
+	validRoles := []string{AdminRole, UserRole, ManagerRole, OperatorRole, AnalystRole}
+	for _, r := range validRoles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}
+
+// GetDefaultRole returns the default role
+func GetDefaultRole() string {
+	return UserRole
+}
+
+// GetAllRoles returns all valid roles
+func GetAllRoles() []string {
+	return []string{AdminRole, UserRole, ManagerRole, OperatorRole, AnalystRole}
 }

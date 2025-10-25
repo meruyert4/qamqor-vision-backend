@@ -8,7 +8,6 @@ import (
 	"auth-service/internal/models"
 	"auth-service/internal/repository"
 
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -34,6 +33,10 @@ func (s *AuthService) CreateUser(req *models.CreateUserRequest) (*models.User, e
 	existingUser, _ := s.userRepo.GetUserByEmail(req.Email)
 	if existingUser != nil {
 		return nil, ErrUserAlreadyExists
+	}
+	// Set default role if not provided
+	if req.Role == "" {
+		req.Role = models.GetDefaultRole()
 	}
 
 	// Hash password
@@ -109,27 +112,6 @@ func (s *AuthService) LoginWithHistory(req *models.LoginRequest, ipAddress strin
 	}, nil
 }
 
-// logLoginAttempt logs a login attempt to the database
-func (s *AuthService) logLoginAttempt(userID, ipAddress string, userAgent *string, status models.LoginStatus, failureReason *string) {
-	if s.loginHistoryRepo == nil {
-		return // Skip logging if repository is not available
-	}
-
-	req := &models.CreateLoginHistoryRequest{
-		UserID:        userID,
-		IPAddress:     ipAddress,
-		UserAgent:     userAgent,
-		LoginStatus:   status,
-		FailureReason: failureReason,
-	}
-
-	_, err := s.loginHistoryRepo.CreateLoginHistory(req)
-	if err != nil {
-		// Log error but don't fail the login process
-		fmt.Printf("Failed to log login attempt: %v\n", err)
-	}
-}
-
 func (s *AuthService) GetUser(id string) (*models.User, error) {
 	return s.userRepo.GetUserByID(id)
 }
@@ -166,6 +148,12 @@ func (s *AuthService) UpdateUser(id string, req *models.UpdateUserRequest) (*mod
 		"phone_number":                 req.PhoneNumber,
 		"push_notification_permission": req.PushNotificationPermission,
 	}
+
+	// Add role if provided
+	if req.Role != nil {
+		updates["role"] = *req.Role
+	}
+
 	return s.userRepo.UpdateUser(id, updates)
 }
 
@@ -240,28 +228,29 @@ func (s *AuthService) ForgotPassword(email string) error {
 	return nil
 }
 
-func (s *AuthService) ResetPassword(email, newPassword, token string) error {
+func (s *AuthService) ResetPassword(token string) (string, error) {
 	// Validate the reset token
 	claims, err := s.validateResetToken(token)
 	if err != nil {
-		return fmt.Errorf("invalid or expired reset token: %w", err)
+		return "", fmt.Errorf("invalid or expired reset token: %w", err)
 	}
 
-	// Get user by email
-	user, err := s.userRepo.GetUserByEmail(email)
+	// Get user by ID
+	user, err := s.userRepo.GetUserByID(claims.UserID)
 	if err != nil {
-		return fmt.Errorf("user not found")
+		return "", fmt.Errorf("user not found")
 	}
 
-	// Verify the token belongs to this user
-	if claims.UserID != user.ID {
-		return fmt.Errorf("invalid reset token")
+	// Generate a new random password
+	newPassword, err := s.generateRandomPassword()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate password: %w", err)
 	}
 
-	// Hash new password
+	// Hash the new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("failed to hash password: %w", err)
+		return "", fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	// Update password
@@ -269,7 +258,11 @@ func (s *AuthService) ResetPassword(email, newPassword, token string) error {
 		"password_hash": string(hashedPassword),
 	}
 	_, err = s.userRepo.UpdateUser(user.ID, updates)
-	return err
+	if err != nil {
+		return "", fmt.Errorf("failed to update password: %w", err)
+	}
+
+	return newPassword, nil
 }
 
 // GetUserFromToken extracts user information from a JWT token
@@ -280,64 +273,4 @@ func (s *AuthService) GetUserFromToken(tokenString string) (userID, email string
 		return "", "", err
 	}
 	return claims.UserID, claims.Email, nil
-}
-
-func (s *AuthService) generateResetToken(userID string) (string, error) {
-	// Use JWT service for reset tokens with 30 minute expiration
-	expirationTime := time.Now().Add(time.Minute * 30)
-
-	claims := &JWTClaims{
-		UserID: userID,
-		Email:  "", // Reset tokens don't need email
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "qamqor-vision-auth",
-			Subject:   userID,
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.config.VerificationSecret))
-}
-
-// validateVerificationToken validates a verification token and returns the claims
-func (s *AuthService) validateVerificationToken(tokenString string) (*JWTClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(s.config.VerificationSecret), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
-		return claims, nil
-	}
-
-	return nil, fmt.Errorf("invalid token")
-}
-
-// validateResetToken validates a reset token and returns the claims
-func (s *AuthService) validateResetToken(tokenString string) (*JWTClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(s.config.VerificationSecret), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
-		return claims, nil
-	}
-
-	return nil, fmt.Errorf("invalid token")
 }

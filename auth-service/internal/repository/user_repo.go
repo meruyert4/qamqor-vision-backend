@@ -33,7 +33,7 @@ func (r *UserRepository) CreateUser(user *models.CreateUserRequest, passwordHash
 
 	var createdUser models.User
 	err := r.db.QueryRow(query, id, user.Email, passwordHash, user.FirstName, user.LastName,
-		user.PhoneNumber, user.PushNotificationPermission, "user", false, now, now).Scan(
+		user.PhoneNumber, user.PushNotificationPermission, user.Role, false, now, now).Scan(
 		&createdUser.ID, &createdUser.Email, &createdUser.FirstName, &createdUser.LastName,
 		&createdUser.PhoneNumber, &createdUser.PushNotificationPermission, &createdUser.Role,
 		&createdUser.IsVerified, &createdUser.CreatedAt, &createdUser.UpdatedAt)

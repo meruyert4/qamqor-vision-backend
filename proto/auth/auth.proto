@@ -40,6 +40,7 @@ message CreateUserRequest {
     string last_name = 4;
     optional string phone_number = 5;
     bool push_notification_permission = 6;
+    optional string role = 7;
 }
 
 message CreateUserResponse {
@@ -75,6 +76,7 @@ message UpdateUserRequest {
     optional string last_name = 4;
     optional string phone_number = 5;
     optional bool push_notification_permission = 6;
+    optional string role = 7;
 }
 
 message UpdateUserResponse {
@@ -121,13 +123,12 @@ message ForgotPasswordResponse {
 
 // Reset password
 message ResetPasswordRequest {
-    string email = 1;
-    string new_password = 2;
-    string token = 3; // из письма
+    string token = 1; // token from email
 }
 
 message ResetPasswordResponse {
     bool success = 1;
+    string new_password = 2;
 }
 
 message UserLoginHistory {

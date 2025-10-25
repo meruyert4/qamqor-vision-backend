@@ -1,5 +1,32 @@
 basePath: /
 definitions:
+  api-gateway_internal_models.ChangePasswordRequest:
+    properties:
+      new_password:
+        example: newpassword123
+        minLength: 6
+        type: string
+      old_password:
+        example: oldpassword123
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  api-gateway_internal_models.ErrorResponse:
+    properties:
+      error:
+        example: Error message
+        type: string
+    type: object
+  api-gateway_internal_models.ForgotPasswordRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+    required:
+    - email
+    type: object
   api-gateway_internal_models.LoginRequest:
     properties:
       email:
@@ -25,6 +52,90 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/api-gateway_internal_models.User'
+    type: object
+  api-gateway_internal_models.RegisterRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      first_name:
+        example: John
+        type: string
+      last_name:
+        example: Doe
+        type: string
+      password:
+        example: Password123!
+        type: string
+      phone_number:
+        example: "+1234567890"
+        type: string
+      push_notification_permission:
+        example: true
+        type: boolean
+      role:
+        example: user
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    type: object
+  api-gateway_internal_models.RegisterResponse:
+    properties:
+      message:
+        example: User created successfully
+        type: string
+      user:
+        $ref: '#/definitions/api-gateway_internal_models.User'
+    type: object
+  api-gateway_internal_models.ResetPasswordRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      new_password:
+        example: newpassword123
+        minLength: 6
+        type: string
+      token:
+        example: reset_token_here
+        type: string
+    required:
+    - email
+    - new_password
+    - token
+    type: object
+  api-gateway_internal_models.SuccessResponse:
+    properties:
+      message:
+        example: Operation successful
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  api-gateway_internal_models.UpdateUserRequest:
+    properties:
+      email:
+        example: newemail@example.com
+        type: string
+      first_name:
+        example: Jane
+        type: string
+      last_name:
+        example: Smith
+        type: string
+      phone_number:
+        example: "+1234567890"
+        type: string
+      push_notification_permission:
+        example: true
+        type: boolean
+      role:
+        example: manager
+        type: string
     type: object
   api-gateway_internal_models.User:
     properties:
@@ -53,13 +164,7 @@ definitions:
         example: user
         type: string
     type: object
-  models.ErrorResponse:
-    properties:
-      error:
-        example: Error message
-        type: string
-    type: object
-  models.UserResponse:
+  api-gateway_internal_models.UserResponse:
     properties:
       message:
         example: User retrieved successfully
@@ -74,6 +179,32 @@ info:
   title: QAMQOR-VISION API Gateway
   version: "1.0"
 paths:
+  /api/v1/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Request password reset email
+      parameters:
+      - description: Email address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api-gateway_internal_models.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+      summary: Forgot Password
+      tags:
+      - Authentication
   /api/v1/login:
     post:
       consumes:
@@ -96,15 +227,106 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
       summary: User Login
       tags:
       - Authentication
+  /api/v1/register:
+    post:
+      consumes:
+      - application/json
+      description: 'Register a new user with email, password, and personal information.
+        Role field is optional and defaults to ''user'' if not provided. Valid roles:
+        admin, user, manager, operator, analyst'
+      parameters:
+      - description: User registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api-gateway_internal_models.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.RegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+      summary: User Registration
+      tags:
+      - Authentication
+  /api/v1/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Reset password using token from email
+      parameters:
+      - description: Password reset data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api-gateway_internal_models.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+      summary: Reset Password
+      tags:
+      - Authentication
   /api/v1/users/{id}:
+    delete:
+      description: Delete user account. Users can only delete their own account. Admins
+        can delete any user.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete User
+      tags:
+      - Users
     get:
       description: Get user by ID
       parameters:
@@ -119,16 +341,58 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.UserResponse'
+            $ref: '#/definitions/api-gateway_internal_models.UserResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
       summary: Get User
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: 'Update user information. All fields are optional. Role field must
+        be one of: admin, user, manager, operator, analyst'
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api-gateway_internal_models.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update User
       tags:
       - Users
   /api/v1/users/{id}/failed-attempts:
@@ -156,11 +420,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
       summary: Get Failed Login Attempts
       tags:
       - Users
@@ -194,12 +458,49 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
       summary: Get User Login History
+      tags:
+      - Users
+  /api/v1/users/{id}/password:
+    put:
+      consumes:
+      - application/json
+      description: Change user password
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Password change data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api-gateway_internal_models.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change Password
       tags:
       - Users
   /api/v1/users/{id}/recent-logins:
@@ -222,11 +523,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
       summary: Get Recent Login History
       tags:
       - Users
@@ -244,10 +545,37 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get Current User Profile
+      tags:
+      - Authentication
+  /api/v1/verify:
+    get:
+      description: Verify user email with token from registration email
+      parameters:
+      - description: Verification token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api-gateway_internal_models.ErrorResponse'
+      summary: Verify Email
       tags:
       - Authentication
 swagger: "2.0"

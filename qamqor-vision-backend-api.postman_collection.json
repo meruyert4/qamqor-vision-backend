@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "qamqor-vision-backend-api",
 		"name": "Qamqor Vision Backend API",
-		"description": "Complete API collection for Qamqor Vision Backend microservices architecture with JWT authentication",
+		"description": "Complete API collection for Qamqor Vision Backend microservices architecture with JWT authentication and role-based authorization",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "qamqor-vision-backend"
 	},
@@ -46,7 +46,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone_number\": \"+1234567890\",\n  \"push_notification_permission\": true\n}"
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone_number\": \"+1234567890\",\n  \"push_notification_permission\": true,\n  \"role\": \"user\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/v1/register",
@@ -59,7 +59,7 @@
 								"register"
 							]
 						},
-						"description": "Register a new user account"
+						"description": "Register a new user account. Role field is optional and defaults to 'user' if not provided. Valid roles: admin, user, manager, operator, analyst"
 					},
 					"response": []
 				},
@@ -206,7 +206,7 @@
 								"{{user_id}}"
 							]
 						},
-						"description": "Get user information by user ID"
+						"description": "Get user information by user ID. Authorization: Users can only access their own data. Admins can access any user's data."
 					},
 					"response": []
 				},
@@ -227,7 +227,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"newemail@example.com\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Smith\",\n  \"phone_number\": \"+9876543210\",\n  \"push_notification_permission\": false\n}"
+							"raw": "{\n  \"email\": \"newemail@example.com\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Smith\",\n  \"phone_number\": \"+9876543210\",\n  \"push_notification_permission\": false,\n  \"role\": \"manager\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/v1/users/{{user_id}}",
@@ -241,7 +241,7 @@
 								"{{user_id}}"
 							]
 						},
-						"description": "Update user information"
+						"description": "Update user information. All fields are optional. Role field must be one of: admin, user, manager, operator, analyst"
 					},
 					"response": []
 				},
@@ -304,7 +304,7 @@
 								"{{user_id}}"
 							]
 						},
-						"description": "Delete user account"
+						"description": "Delete user account. Authorization: Users can only delete their own account. Admins can delete any user."
 					},
 					"response": []
 				},
@@ -314,21 +314,16 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}",
-								"description": "JWT access token"
-							},
-							{
 								"key": "Content-Type",
 								"value": "application/json"
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"token\": \"verification-token\"\n}"
+							"raw": "{\n  \"token\": \"verification-token-from-email\"\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/users/{{user_id}}/verify",
+							"raw": "{{base_url}}/api/v1/users/verify",
 							"host": [
 								"{{base_url}}"
 							],
@@ -336,16 +331,15 @@
 								"api",
 								"v1",
 								"users",
-								"{{user_id}}",
 								"verify"
 							]
 						},
-						"description": "Verify user email with token"
+						"description": "Verify user email with token from registration email"
 					},
 					"response": []
 				}
 			],
-			"description": "User management endpoints (JWT authentication required)"
+			"description": "User management endpoints. Authorization required. Role-based access control applies."
 		},
 		{
 			"name": "Login History (Protected)",
