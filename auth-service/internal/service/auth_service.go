@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"net/smtp"
 	"time"
 
 	"auth-service/config"
@@ -50,7 +49,10 @@ func (s *AuthService) CreateUser(req *models.CreateUserRequest) (*models.User, e
 	}
 
 	// Send verification email
-	go s.sendVerificationEmail(user)
+	if err := s.sendVerificationEmail(user); err != nil {
+		fmt.Printf("Failed to send verification email: %v\n", err)
+		// Don't fail user creation if email fails
+	}
 
 	return user, nil
 }
@@ -70,6 +72,14 @@ func (s *AuthService) LoginWithHistory(req *models.LoginRequest, ipAddress strin
 			s.logLoginAttempt(user.ID, ipAddress, userAgent, models.LoginStatusFailed, &reason)
 		}
 		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	// Check if email is verified
+	if !user.IsVerified {
+		// Log failed login attempt
+		reason := "email not verified"
+		s.logLoginAttempt(user.ID, ipAddress, userAgent, models.LoginStatusFailed, &reason)
+		return nil, fmt.Errorf("please verify your email first")
 	}
 
 	// Check password
@@ -186,13 +196,26 @@ func (s *AuthService) ChangePassword(id, oldPassword, newPassword string) error 
 }
 
 func (s *AuthService) DeleteUser(id string) error {
+	user, err := s.userRepo.GetUserByID(id)
+	if err != nil {
+		return fmt.Errorf("database error: %w", err)
+	}
+	// Send account deletion email
+	if err := s.sendAccountDeletionEail(user); err != nil {
+		fmt.Printf("Failed to send account deletion info email: %v\n", err)
+	}
 	return s.userRepo.DeleteUser(id)
 }
 
-func (s *AuthService) VerifyUser(id, token string) error {
-	// In a real implementation, you would verify the JWT token
-	// For simplicity, we'll just verify the user
-	return s.userRepo.VerifyUser(id)
+func (s *AuthService) VerifyUser(token string) error {
+	// Validate the verification token
+	claims, err := s.validateVerificationToken(token)
+	if err != nil {
+		return fmt.Errorf("invalid or expired verification token: %w", err)
+	}
+
+	// Verify the user
+	return s.userRepo.VerifyUser(claims.UserID)
 }
 
 func (s *AuthService) ForgotPassword(email string) error {
@@ -209,17 +232,30 @@ func (s *AuthService) ForgotPassword(email string) error {
 	}
 
 	// Send reset email
-	go s.sendResetPasswordEmail(user, resetToken)
+	if err := s.sendResetPasswordEmail(user, resetToken); err != nil {
+		fmt.Printf("Failed to send reset password email: %v\n", err)
+		// Don't fail the request if email fails
+	}
 
 	return nil
 }
 
 func (s *AuthService) ResetPassword(email, newPassword, token string) error {
-	// In a real implementation, you would verify the reset token
-	// For simplicity, we'll just update the password
+	// Validate the reset token
+	claims, err := s.validateResetToken(token)
+	if err != nil {
+		return fmt.Errorf("invalid or expired reset token: %w", err)
+	}
+
+	// Get user by email
 	user, err := s.userRepo.GetUserByEmail(email)
 	if err != nil {
 		return fmt.Errorf("user not found")
+	}
+
+	// Verify the token belongs to this user
+	if claims.UserID != user.ID {
+		return fmt.Errorf("invalid reset token")
 	}
 
 	// Hash new password
@@ -236,12 +272,6 @@ func (s *AuthService) ResetPassword(email, newPassword, token string) error {
 	return err
 }
 
-// ValidateJWTToken validates a JWT token and returns the user ID
-// This method is used by the API gateway to validate tokens
-func (s *AuthService) ValidateJWTToken(tokenString string) (string, error) {
-	return s.jwtService.ExtractUserID(tokenString)
-}
-
 // GetUserFromToken extracts user information from a JWT token
 // Returns user ID and email from token claims
 func (s *AuthService) GetUserFromToken(tokenString string) (userID, email string, err error) {
@@ -253,8 +283,8 @@ func (s *AuthService) GetUserFromToken(tokenString string) (userID, email string
 }
 
 func (s *AuthService) generateResetToken(userID string) (string, error) {
-	// Use JWT service for reset tokens with 1 hour expiration
-	expirationTime := time.Now().Add(time.Hour)
+	// Use JWT service for reset tokens with 30 minute expiration
+	expirationTime := time.Now().Add(time.Minute * 30)
 
 	claims := &JWTClaims{
 		UserID: userID,
@@ -272,79 +302,42 @@ func (s *AuthService) generateResetToken(userID string) (string, error) {
 	return token.SignedString([]byte(s.config.VerificationSecret))
 }
 
-func (s *AuthService) sendVerificationEmail(user *models.User) error {
-	if s.config.SMTPUsername == "" || s.config.SMTPPassword == "" {
-		return nil // Skip email if SMTP not configured
-	}
+// validateVerificationToken validates a verification token and returns the claims
+func (s *AuthService) validateVerificationToken(tokenString string) (*JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(s.config.VerificationSecret), nil
+	})
 
-	// Generate verification token
-	verificationToken, err := s.generateVerificationToken(user.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	verificationURL := fmt.Sprintf("%s/verify?token=%s", s.config.FrontendURL, verificationToken)
-
-	subject := "QAMQOR-VISION: Email Verification Link"
-	body := fmt.Sprintf(`
-		Hello %s %s,
-		
-		Please click the link below to verify your email address:
-		%s
-		
-		If you didn't create an account, please ignore this email.
-	`, user.FirstName, user.LastName, verificationURL)
-
-	return s.sendEmail(user.Email, subject, body)
-}
-
-func (s *AuthService) sendResetPasswordEmail(user *models.User, resetToken string) error {
-	if s.config.SMTPUsername == "" || s.config.SMTPPassword == "" {
-		return nil // Skip email if SMTP not configured
+	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
+		return claims, nil
 	}
 
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.config.FrontendURL, resetToken)
-
-	subject := "QAMQOR-VISION: Password Reset Link"
-	body := fmt.Sprintf(`
-		Hello %s %s,
-		
-		Please click the link below to reset your password:
-		%s
-		
-		This link will expire in 1 hour.
-		
-		If you didn't request this, please ignore this email.
-	`, user.FirstName, user.LastName, resetURL)
-
-	return s.sendEmail(user.Email, subject, body)
+	return nil, fmt.Errorf("invalid token")
 }
 
-func (s *AuthService) generateVerificationToken(userID string) (string, error) {
-	// Use JWT service for verification tokens with 24 hour expiration
-	expirationTime := time.Now().Add(time.Hour * 24)
+// validateResetToken validates a reset token and returns the claims
+func (s *AuthService) validateResetToken(tokenString string) (*JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(s.config.VerificationSecret), nil
+	})
 
-	claims := &JWTClaims{
-		UserID: userID,
-		Email:  "", // Verification tokens don't need email
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "qamqor-vision-auth",
-			Subject:   userID,
-		},
+	if err != nil {
+		return nil, err
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.config.VerificationSecret))
-}
+	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
+		return claims, nil
+	}
 
-func (s *AuthService) sendEmail(to, subject, body string) error {
-	auth := smtp.PlainAuth("", s.config.SMTPUsername, s.config.SMTPPassword, s.config.SMTPHost)
-
-	msg := []byte(fmt.Sprintf("To: %s\r\nSubject: %s\r\n\r\n%s", to, subject, body))
-
-	addr := fmt.Sprintf("%s:%d", s.config.SMTPHost, s.config.SMTPPort)
-	return smtp.SendMail(addr, auth, s.config.SMTPFrom, []string{to}, msg)
+	return nil, fmt.Errorf("invalid token")
 }

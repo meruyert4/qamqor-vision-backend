@@ -53,6 +53,7 @@ func SetupRouter(authClient *client.AuthClient, authServiceAddr, databaseURL str
 		api.POST("/login", authRoutes.Login)
 		api.POST("/forgot-password", authRoutes.ForgotPassword)
 		api.POST("/reset-password", authRoutes.ResetPassword)
+		api.GET("/verify", authRoutes.VerifyEmail)
 
 		// Protected routes (JWT authentication required)
 		protected := api.Group("/")

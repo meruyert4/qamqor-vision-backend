@@ -43,7 +43,7 @@ message CreateUserRequest {
 }
 
 message CreateUserResponse {
-    User user = 1;
+    string message = 2;
 }
 
 // Login
@@ -103,8 +103,7 @@ message DeleteUserResponse {
 
 // Verify email
 message VerifyUserRequest {
-    string id = 1;
-    string token = 2;
+    string token = 1;
 }
 
 message VerifyUserResponse {

@@ -10,7 +10,11 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./auth-service/internal/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d authdb"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
     networks:
       - app-network
 
@@ -19,21 +23,19 @@ services:
     build:
       context: .
       dockerfile: auth-service/Dockerfile
+    env_file:
+      - auth-service/.env
     environment:
       DATABASE_URL: postgres://user:password@postgres:5432/authdb?sslmode=disable
       JWT_SECRET: your-secret-key-change-in-production
       VERIFICATION_SECRET: verification-secret-change-in-production
-      SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      SMTP_USERNAME: ""
-      SMTP_PASSWORD: ""
-      SMTP_FROM: ""
-      FRONTEND_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:8080
       GRPC_PORT: 50051
     ports:
       - "50051:50051"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -45,7 +47,6 @@ services:
     environment:
       PORT: 8080
       AUTH_SERVICE_ADDR: auth-service:50051
-      DATABASE_URL: postgres://user:password@postgres:5432/authdb?sslmode=disable
     ports:
       - "8080:8080"
     depends_on:

@@ -58,8 +58,7 @@ func (r *AuthRoutes) Register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
-		"user":    resp.User,
+		"message": resp.Message,
 	})
 }
 
@@ -236,6 +235,31 @@ func (r *AuthRoutes) DeleteUser(c *gin.Context) {
 	})
 }
 
+// VerifyEmail handles email verification via token (public route)
+func (r *AuthRoutes) VerifyEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Verification token is required"})
+		return
+	}
+
+	grpcReq := &pb.VerifyUserRequest{
+		Token: token,
+	}
+
+	resp, err := r.authClient.VerifyUser(c.Request.Context(), grpcReq)
+	if err != nil {
+		statusCode, errorResponse := HandleAuthError(err)
+		c.JSON(statusCode, errorResponse)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Email verified successfully! You can now log in.",
+		"success": resp.Success,
+	})
+}
+
 func (r *AuthRoutes) VerifyUser(c *gin.Context) {
 	userID := c.Param("id")
 	if userID == "" {
@@ -250,7 +274,6 @@ func (r *AuthRoutes) VerifyUser(c *gin.Context) {
 	}
 
 	grpcReq := &pb.VerifyUserRequest{
-		Id:    userID,
 		Token: token,
 	}
 

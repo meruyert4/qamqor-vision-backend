@@ -3,6 +3,9 @@ package routes
 import (
 	"net/http"
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ErrorResponse represents a standardized error response
@@ -18,7 +21,57 @@ func HandleAuthError(err error) (int, ErrorResponse) {
 		return http.StatusOK, ErrorResponse{}
 	}
 
-	// Extract the actual error message from gRPC error format
+	// Check if this is a gRPC status error
+	if st, ok := status.FromError(err); ok {
+		// Extract the error message
+		message := st.Message()
+
+		// Map gRPC status codes to HTTP status codes
+		switch st.Code() {
+		case codes.InvalidArgument:
+			return http.StatusBadRequest, ErrorResponse{
+				Error:   "Invalid request",
+				Message: message,
+			}
+		case codes.NotFound:
+			return http.StatusNotFound, ErrorResponse{
+				Error:   "Not found",
+				Message: message,
+			}
+		case codes.AlreadyExists:
+			return http.StatusConflict, ErrorResponse{
+				Error:   "User already exists",
+				Message: "A user with this email address already exists",
+			}
+		case codes.Unauthenticated:
+			return http.StatusUnauthorized, ErrorResponse{
+				Error:   "Invalid credentials",
+				Message: "The provided email or password is incorrect",
+			}
+		case codes.PermissionDenied:
+			return http.StatusForbidden, ErrorResponse{
+				Error:   "Permission denied",
+				Message: message,
+			}
+		case codes.Unavailable:
+			return http.StatusServiceUnavailable, ErrorResponse{
+				Error:   "Service unavailable",
+				Message: "The authentication service is temporarily unavailable",
+			}
+		case codes.DeadlineExceeded:
+			return http.StatusRequestTimeout, ErrorResponse{
+				Error:   "Request timeout",
+				Message: "The request timed out",
+			}
+		default:
+			return http.StatusInternalServerError, ErrorResponse{
+				Error:   "Internal server error",
+				Message: message,
+			}
+		}
+	}
+
+	// Fallback for non-gRPC errors - extract message from error string
 	rawError := err.Error()
 	if strings.Contains(rawError, "desc = ") {
 		parts := strings.Split(rawError, "desc = ")
@@ -27,7 +80,7 @@ func HandleAuthError(err error) (int, ErrorResponse) {
 		}
 	}
 
-	// Handle different error types
+	// Handle legacy string-based error detection for backward compatibility
 	switch {
 	case strings.Contains(rawError, "user with this email already exists"):
 		return http.StatusConflict, ErrorResponse{

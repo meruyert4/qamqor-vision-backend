@@ -85,7 +85,7 @@ func (s *GRPCServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
-	user, err := s.authService.CreateUser(createReq)
+	_, err := s.authService.CreateUser(createReq)
 	if err != nil {
 		if err == service.ErrUserAlreadyExists {
 			return nil, status.Errorf(codes.AlreadyExists, "user with this email already exists")
@@ -94,16 +94,7 @@ func (s *GRPCServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) 
 	}
 
 	return &pb.CreateUserResponse{
-		User: &pb.User{
-			Id:                         user.ID,
-			Email:                      user.Email,
-			FirstName:                  user.FirstName,
-			LastName:                   user.LastName,
-			PhoneNumber:                getStringValue(user.PhoneNumber),
-			PushNotificationPermission: user.PushNotificationPermission,
-			Role:                       user.Role,
-			CreatedAt:                  user.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		},
+		Message: "User created successfully. Verify your email",
 	}, nil
 }
 
@@ -130,6 +121,9 @@ func (s *GRPCServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 
 	response, err := s.authService.LoginWithHistory(loginReq, ipAddress, userAgent)
 	if err != nil {
+		if err.Error() == "please verify your email first" {
+			return nil, status.Errorf(codes.PermissionDenied, "please verify your email first")
+		}
 		return nil, status.Errorf(codes.Unauthenticated, "invalid credentials: %v", err)
 	}
 
@@ -287,7 +281,7 @@ func (s *GRPCServer) VerifyUser(ctx context.Context, req *pb.VerifyUserRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
-	err := s.authService.VerifyUser(req.Id, req.Token)
+	err := s.authService.VerifyUser(req.Token)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to verify user: %v", err)
 	}
