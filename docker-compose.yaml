@@ -29,6 +29,7 @@ services:
       DATABASE_URL: postgres://user:password@postgres:5432/authdb?sslmode=disable
       JWT_SECRET: your-secret-key-change-in-production
       VERIFICATION_SECRET: verification-secret-change-in-production
+      FRONTEND_URL: http://localhost:8080
       GRPC_PORT: 50051
     ports:
       - "50051:50051"

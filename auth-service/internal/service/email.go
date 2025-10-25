@@ -26,7 +26,7 @@ func (s *AuthService) sendVerificationEmail(user *models.User) error {
 		return err
 	}
 
-	verificationURL := fmt.Sprintf("%s/verify?token=%s", s.config.FrontendURL, verificationToken)
+	verificationURL := fmt.Sprintf("%s/api/v1/verify?token=%s", s.config.FrontendURL, verificationToken)
 	subject := "QAMQOR VISION: Email Verification Required"
 
 	// Load and parse HTML template
