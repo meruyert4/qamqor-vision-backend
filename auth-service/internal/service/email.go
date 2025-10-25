@@ -48,24 +48,15 @@ func (s *AuthService) sendVerificationEmail(user *models.User) error {
 		return fmt.Errorf("failed to execute email template: %w", err)
 	}
 
-	fmt.Printf("=== EMAIL VERIFICATION ===\n")
-	fmt.Printf("From: %s\n", s.config.SMTPFrom)
-	fmt.Printf("To: %s\n", user.Email)
-	fmt.Printf("Subject: %s\n", subject)
-	fmt.Printf("Verification URL: %s\n", verificationURL)
-	fmt.Printf("Body:\n%s\n", body.String())
-	fmt.Printf("========================\n")
-
 	if s.config.SMTPUsername == "" || s.config.SMTPPassword == "" {
-		fmt.Printf("SMTP not configured, email not sent (test mode)\n")
-		return nil // Skip email if SMTP not configured
+		return fmt.Errorf("SMTP not configured, email not sent")
 	}
 
 	return s.sendHTMLEmail(user.Email, subject, body.String())
 }
 
 func (s *AuthService) sendResetPasswordEmail(user *models.User, resetToken string) error {
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.config.FrontendURL, resetToken)
+	resetURL := fmt.Sprintf("%s/api/v1/reset-password?token=%s", s.config.FrontendURL, resetToken)
 	subject := "QAMQOR VISION: Password Reset Request"
 
 	// Load and parse HTML template
@@ -87,17 +78,8 @@ func (s *AuthService) sendResetPasswordEmail(user *models.User, resetToken strin
 		return fmt.Errorf("failed to execute email template: %w", err)
 	}
 
-	fmt.Printf("=== PASSWORD RESET EMAIL ===\n")
-	fmt.Printf("From: %s\n", s.config.SMTPFrom)
-	fmt.Printf("To: %s\n", user.Email)
-	fmt.Printf("Subject: %s\n", subject)
-	fmt.Printf("Reset URL: %s\n", resetURL)
-	fmt.Printf("Body:\n%s\n", body.String())
-	fmt.Printf("===========================\n")
-
 	if s.config.SMTPUsername == "" || s.config.SMTPPassword == "" {
-		fmt.Printf("SMTP not configured, email not sent (test mode)\n")
-		return nil // Skip email if SMTP not configured
+		return fmt.Errorf("SMTP not configured, email not sent")
 	}
 
 	return s.sendHTMLEmail(user.Email, subject, body.String())
@@ -124,8 +106,7 @@ func (s *AuthService) sendAccountDeletionEail(user *models.User) error {
 	}
 
 	if s.config.SMTPUsername == "" || s.config.SMTPPassword == "" {
-		fmt.Printf("SMTP not configured, email not sent (test mode)\n")
-		return nil // Skip email if SMTP not configured
+		return fmt.Errorf("SMTP not configured, email not sent")
 	}
 
 	return s.sendHTMLEmail(user.Email, subject, body.String())
@@ -160,16 +141,9 @@ func (s *AuthService) sendHTMLEmail(to, subject, htmlBody string) error {
 
 	addr := fmt.Sprintf("%s:%d", s.config.SMTPHost, s.config.SMTPPort)
 
-	fmt.Printf("SMTP Config - Host: %s, Port: %d, Username: %s, From: %s\n",
-		s.config.SMTPHost, s.config.SMTPPort, s.config.SMTPUsername, s.config.SMTPFrom)
-	fmt.Printf("Sending email from: %s to: %s via %s\n", s.config.SMTPFrom, to, addr)
-
 	err := smtp.SendMail(addr, auth, s.config.SMTPFrom, []string{to}, msg)
 	if err != nil {
-		fmt.Printf("Failed to send email: %v\n", err)
 		return err
 	}
-
-	fmt.Printf("Email sent successfully from: %s to: %s\n", s.config.SMTPFrom, to)
 	return nil
 }

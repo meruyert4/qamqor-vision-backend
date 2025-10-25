@@ -17,8 +17,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -31,75 +29,6 @@ func NewGRPCServer(authService *service.AuthService) *GRPCServer {
 	return &GRPCServer{
 		authService: authService,
 	}
-}
-
-func getStringValue(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
-
-// getClientIP extracts the client IP address from the gRPC context
-func (s *GRPCServer) getClientIP(ctx context.Context) string {
-	// Try to get IP from peer info
-	if peer, ok := peer.FromContext(ctx); ok {
-		if tcpAddr, ok := peer.Addr.(*net.TCPAddr); ok {
-			return tcpAddr.IP.String()
-		}
-	}
-	return "unknown"
-}
-
-// getUserAgent extracts the user agent from the gRPC context metadata
-func (s *GRPCServer) getUserAgent(ctx context.Context) *string {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil
-	}
-
-	if userAgents := md.Get("user-agent"); len(userAgents) > 0 {
-		return &userAgents[0]
-	}
-
-	return nil
-}
-
-// getAuthToken extracts the authorization token from gRPC context metadata
-func (s *GRPCServer) getAuthToken(ctx context.Context) (string, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return "", fmt.Errorf("no metadata found")
-	}
-
-	authHeaders := md.Get("authorization")
-	if len(authHeaders) == 0 {
-		return "", fmt.Errorf("authorization header not found")
-	}
-
-	token := authHeaders[0]
-	token = strings.TrimPrefix(token, "Bearer ")
-	return token, nil
-}
-
-// getCurrentUser extracts the current user from the JWT token in the gRPC context
-func (s *GRPCServer) getCurrentUser(ctx context.Context) (*models.User, error) {
-	token, err := s.getAuthToken(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	userID, _, err := s.authService.GetUserFromToken(token)
-	if err != nil {
-		return nil, fmt.Errorf("invalid token: %w", err)
-	}
-
-	user, err := s.authService.GetUser(userID)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-
-	return user, nil
 }
 
 func (s *GRPCServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
@@ -155,8 +84,8 @@ func (s *GRPCServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	}
 
 	// Extract IP address and user agent from context
-	ipAddress := s.getClientIP(ctx)
-	userAgent := s.getUserAgent(ctx)
+	ipAddress := getClientIP(ctx)
+	userAgent := getUserAgent(ctx)
 
 	response, err := s.authService.LoginWithHistory(loginReq, ipAddress, userAgent)
 	if err != nil {
@@ -197,15 +126,14 @@ func (s *GRPCServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.G
 		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
-	// Get current user from token
-	currentUser, err := s.getCurrentUser(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "authentication required: %v", err)
+	// Check permission for GET /api/v1/users/:id
+	if err := checkPermission(ctx, s.authService, "GET", "/api/v1/users/"+req.Id); err != nil {
+		return nil, err
 	}
 
-	// Non-admin users can only access their own data
-	if currentUser.Role != models.AdminRole && currentUser.ID != req.Id {
-		return nil, status.Errorf(codes.PermissionDenied, "you don't have permission to access this user's data")
+	// Check if user can access this specific resource (own resource or admin)
+	if err := checkOwnResourcePermission(ctx, s.authService, req.Id); err != nil {
+		return nil, err
 	}
 
 	user, err := s.authService.GetUser(req.Id)
@@ -248,6 +176,16 @@ func (s *GRPCServer) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
+	// Check permission for PUT /api/v1/users/:id
+	if err := checkPermission(ctx, s.authService, "PUT", "/api/v1/users/"+req.Id); err != nil {
+		return nil, err
+	}
+
+	// Check if user can access this specific resource (own resource or admin)
+	if err := checkOwnResourcePermission(ctx, s.authService, req.Id); err != nil {
+		return nil, err
+	}
+
 	user, err := s.authService.UpdateUser(req.Id, updateReq)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to update user: %v", err)
@@ -284,6 +222,16 @@ func (s *GRPCServer) ChangePassword(ctx context.Context, req *pb.ChangePasswordR
 		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
+	// Check permission for PUT /api/v1/users/:id/password
+	if err := checkPermission(ctx, s.authService, "PUT", "/api/v1/users/"+req.Id+"/password"); err != nil {
+		return nil, err
+	}
+
+	// Check if user can access this specific resource (own resource or admin)
+	if err := checkOwnResourcePermission(ctx, s.authService, req.Id); err != nil {
+		return nil, err
+	}
+
 	err := s.authService.ChangePassword(req.Id, req.OldPassword, req.NewPassword)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to change password: %v", err)
@@ -308,18 +256,17 @@ func (s *GRPCServer) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
-	// Get current user from token
-	currentUser, err := s.getCurrentUser(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "authentication required: %v", err)
+	// Check permission for DELETE /api/v1/users/:id
+	if err := checkPermission(ctx, s.authService, "DELETE", "/api/v1/users/"+req.Id); err != nil {
+		return nil, err
 	}
 
-	// Non-admin users can only delete their own account
-	if currentUser.Role != models.AdminRole && currentUser.ID != req.Id {
-		return nil, status.Errorf(codes.PermissionDenied, "you don't have permission to delete this user")
+	// Check if user can access this specific resource (own resource or admin)
+	if err := checkOwnResourcePermission(ctx, s.authService, req.Id); err != nil {
+		return nil, err
 	}
 
-	err = s.authService.DeleteUser(req.Id)
+	err := s.authService.DeleteUser(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete user: %v", err)
 	}
@@ -429,6 +376,16 @@ func (s *GRPCServer) GetUserLoginHistory(ctx context.Context, req *pb.GetUserLog
 		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
 	}
 
+	// Check permission for GET /api/v1/users/:id/login-history
+	if err := checkPermission(ctx, s.authService, "GET", "/api/v1/users/"+req.UserId+"/login-history"); err != nil {
+		return nil, err
+	}
+
+	// Check if user can access this specific resource (own resource or admin)
+	if err := checkOwnResourcePermission(ctx, s.authService, req.UserId); err != nil {
+		return nil, err
+	}
+
 	histories, err := s.authService.GetUserLoginHistory(req.UserId, int(req.Limit), int(req.Offset))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get user login history: %v", err)
@@ -460,6 +417,16 @@ func (s *GRPCServer) GetRecentLoginHistory(ctx context.Context, req *pb.GetRecen
 	// Validate the request
 	if errors := validation.ValidateStruct(recentReq); len(errors) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	}
+
+	// Check permission for GET /api/v1/users/:id/recent-logins
+	if err := checkPermission(ctx, s.authService, "GET", "/api/v1/users/"+req.UserId+"/recent-logins"); err != nil {
+		return nil, err
+	}
+
+	// Check if user can access this specific resource (own resource or admin)
+	if err := checkOwnResourcePermission(ctx, s.authService, req.UserId); err != nil {
+		return nil, err
 	}
 
 	histories, err := s.authService.GetRecentLoginHistory(req.UserId)
@@ -494,6 +461,16 @@ func (s *GRPCServer) GetFailedLoginAttempts(ctx context.Context, req *pb.GetFail
 	// Validate the request
 	if errors := validation.ValidateStruct(failedReq); len(errors) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
+	}
+
+	// Check permission for GET /api/v1/users/:id/failed-attempts
+	if err := checkPermission(ctx, s.authService, "GET", "/api/v1/users/"+req.UserId+"/failed-attempts"); err != nil {
+		return nil, err
+	}
+
+	// Check if user can access this specific resource (own resource or admin)
+	if err := checkOwnResourcePermission(ctx, s.authService, req.UserId); err != nil {
+		return nil, err
 	}
 
 	since, err := time.Parse("2006-01-02T15:04:05Z", req.Since)
