@@ -58,8 +58,7 @@ func (r *AuthRoutes) Register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
-		"user":    resp.User,
+		"message": resp.Message,
 	})
 }
 
@@ -250,7 +249,6 @@ func (r *AuthRoutes) VerifyUser(c *gin.Context) {
 	}
 
 	grpcReq := &pb.VerifyUserRequest{
-		Id:    userID,
 		Token: token,
 	}
 

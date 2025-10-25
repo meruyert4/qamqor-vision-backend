@@ -40,9 +40,9 @@ docker-info:
 generate:
 	@echo "$(PINK)⚙️ Generating gRPC and gateway files...$(RESET)"
 	protoc -I $(PROTO_DIR) \
-		--go_out=. \
-		--go-grpc_out=. \
-		--grpc-gateway_out=. \
+		--go_out=$(PROTO_DIR) \
+		--go-grpc_out=$(PROTO_DIR) \
+		--grpc-gateway_out=$(PROTO_DIR) \
 		$(PROTO_DIR)/**/*.proto
 	@echo "$(PINK)✓ gRPC and gateway files generated$(RESET)"
 

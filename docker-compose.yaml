@@ -19,16 +19,12 @@ services:
     build:
       context: .
       dockerfile: auth-service/Dockerfile
+    env_file:
+      - auth-service/.env
     environment:
       DATABASE_URL: postgres://user:password@postgres:5432/authdb?sslmode=disable
       JWT_SECRET: your-secret-key-change-in-production
       VERIFICATION_SECRET: verification-secret-change-in-production
-      SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      SMTP_USERNAME: ""
-      SMTP_PASSWORD: ""
-      SMTP_FROM: ""
-      FRONTEND_URL: http://localhost:3000
       GRPC_PORT: 50051
     ports:
       - "50051:50051"
