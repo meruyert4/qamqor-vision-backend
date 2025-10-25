@@ -30,7 +30,7 @@ func (s *AuthService) sendVerificationEmail(user *models.User) error {
 	subject := "QAMQOR VISION: Email Verification Required"
 
 	// Load and parse HTML template
-	tmpl, err := template.ParseFiles(filepath.Join("email_templates", "email_verification.html"))
+	tmpl, err := template.ParseFiles(filepath.Join("internal/service/email_templates", "email_verification.html"))
 	if err != nil {
 		return fmt.Errorf("failed to load email template: %w", err)
 	}
@@ -69,7 +69,7 @@ func (s *AuthService) sendResetPasswordEmail(user *models.User, resetToken strin
 	subject := "QAMQOR VISION: Password Reset Request"
 
 	// Load and parse HTML template
-	tmpl, err := template.ParseFiles(filepath.Join("email_templates", "reset_password.html"))
+	tmpl, err := template.ParseFiles(filepath.Join("internal/service/email_templates", "reset_password.html"))
 	if err != nil {
 		return fmt.Errorf("failed to load email template: %w", err)
 	}
@@ -106,7 +106,7 @@ func (s *AuthService) sendResetPasswordEmail(user *models.User, resetToken strin
 func (s *AuthService) sendAccountDeletionEail(user *models.User) error {
 	subject := "Your QAMQOR VISION Account Has Been Deleted"
 	// Load and parse HTML template
-	tmpl, err := template.ParseFiles(filepath.Join("email_templates", "account_deletion.html"))
+	tmpl, err := template.ParseFiles(filepath.Join("internal/service/email_templates", "account_deletion.html"))
 	if err != nil {
 		return fmt.Errorf("failed to load email template: %w", err)
 	}

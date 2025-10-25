@@ -11,9 +11,9 @@ import (
 )
 
 func StartServer() error {
-	// Load environment variables
+	// Load environment variables (optional)
 	if err := godotenv.Load(); err != nil {
-		return fmt.Errorf("failed to load .env file: %w", err)
+		// .env file is optional, continue without it
 	}
 
 	// Get configuration from environment

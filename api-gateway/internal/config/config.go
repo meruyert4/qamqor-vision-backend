@@ -13,8 +13,9 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	// Try to load .env file, but don't fail if it doesn't exist
 	if err := godotenv.Load(); err != nil {
-		// .env file is optional
+		// .env file is optional, continue without it
 	}
 
 	return &Config{
