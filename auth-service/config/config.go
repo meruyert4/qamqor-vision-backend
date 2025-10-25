@@ -35,7 +35,7 @@ func Load() (*Config, error) {
 		SMTPUsername:       getEnv("SMTP_USERNAME", ""),
 		SMTPPassword:       getEnv("SMTP_PASSWORD", ""),
 		SMTPFrom:           getEnv("SMTP_FROM", ""),
-		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
+		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:8080"),
 		GRPCPort:           getEnv("GRPC_PORT", "50051"),
 		VerificationSecret: getEnv("VERIFICATION_SECRET", "verification-secret"),
 	}, nil

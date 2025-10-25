@@ -372,29 +372,21 @@ func (r *AuthRoutes) ForgotPassword(c *gin.Context) {
 // @Summary Reset Password
 // @Description Reset password using token from email
 // @Tags Authentication
-// @Accept json
 // @Produce json
-// @Param request body models.ResetPasswordRequest true "Password reset data"
+// @Param token query string true "Reset token from email"
 // @Success 200 {object} models.SuccessResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
-// @Router /api/v1/reset-password [post]
+// @Router /api/v1/reset-password [get]
 func (r *AuthRoutes) ResetPassword(c *gin.Context) {
-	var req struct {
-		Email       string `json:"email" binding:"required,email"`
-		NewPassword string `json:"new_password" binding:"required,min=6"`
-		Token       string `json:"token" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Reset token is required"})
 		return
 	}
 
 	grpcReq := &pb.ResetPasswordRequest{
-		Email:       req.Email,
-		NewPassword: req.NewPassword,
-		Token:       req.Token,
+		Token: token,
 	}
 
 	resp, err := r.authClient.ResetPassword(c.Request.Context(), grpcReq)
@@ -405,8 +397,9 @@ func (r *AuthRoutes) ResetPassword(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Password reset successfully",
-		"success": resp.Success,
+		"message":      "Password reset successfully! You can now log in with your new password.",
+		"success":      resp.Success,
+		"new_password": resp.NewPassword,
 	})
 }
 

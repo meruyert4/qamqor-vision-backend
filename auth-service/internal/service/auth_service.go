@@ -228,28 +228,29 @@ func (s *AuthService) ForgotPassword(email string) error {
 	return nil
 }
 
-func (s *AuthService) ResetPassword(email, newPassword, token string) error {
+func (s *AuthService) ResetPassword(token string) (string, error) {
 	// Validate the reset token
 	claims, err := s.validateResetToken(token)
 	if err != nil {
-		return fmt.Errorf("invalid or expired reset token: %w", err)
+		return "", fmt.Errorf("invalid or expired reset token: %w", err)
 	}
 
-	// Get user by email
-	user, err := s.userRepo.GetUserByEmail(email)
+	// Get user by ID
+	user, err := s.userRepo.GetUserByID(claims.UserID)
 	if err != nil {
-		return fmt.Errorf("user not found")
+		return "", fmt.Errorf("user not found")
 	}
 
-	// Verify the token belongs to this user
-	if claims.UserID != user.ID {
-		return fmt.Errorf("invalid reset token")
+	// Generate a new random password
+	newPassword, err := s.generateRandomPassword()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate password: %w", err)
 	}
 
-	// Hash new password
+	// Hash the new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("failed to hash password: %w", err)
+		return "", fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	// Update password
@@ -257,7 +258,11 @@ func (s *AuthService) ResetPassword(email, newPassword, token string) error {
 		"password_hash": string(hashedPassword),
 	}
 	_, err = s.userRepo.UpdateUser(user.ID, updates)
-	return err
+	if err != nil {
+		return "", fmt.Errorf("failed to update password: %w", err)
+	}
+
+	return newPassword, nil
 }
 
 // GetUserFromToken extracts user information from a JWT token

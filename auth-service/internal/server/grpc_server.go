@@ -376,23 +376,16 @@ func (s *GRPCServer) ForgotPassword(ctx context.Context, req *pb.ForgotPasswordR
 }
 
 func (s *GRPCServer) ResetPassword(ctx context.Context, req *pb.ResetPasswordRequest) (*pb.ResetPasswordResponse, error) {
-	resetReq := &models.ResetPasswordRequest{
-		Email:       req.Email,
-		NewPassword: req.NewPassword,
-		Token:       req.Token,
-	}
-
-	// Validate the request
-	if errors := validation.ValidateStruct(resetReq); len(errors) > 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
-	}
-
-	err := s.authService.ResetPassword(req.Email, req.NewPassword, req.Token)
+	// Use the existing ResetPassword method from auth service
+	newPassword, err := s.authService.ResetPassword(req.Token)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to reset password: %v", err)
 	}
 
-	return &pb.ResetPasswordResponse{Success: true}, nil
+	return &pb.ResetPasswordResponse{
+		Success:     true,
+		NewPassword: newPassword,
+	}, nil
 }
 
 // ValidateToken validates a JWT token and returns user information

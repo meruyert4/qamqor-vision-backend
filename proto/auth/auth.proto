@@ -123,13 +123,12 @@ message ForgotPasswordResponse {
 
 // Reset password
 message ResetPasswordRequest {
-    string email = 1;
-    string new_password = 2;
-    string token = 3; // из письма
+    string token = 1; // token from email
 }
 
 message ResetPasswordResponse {
     bool success = 1;
+    string new_password = 2;
 }
 
 message UserLoginHistory {

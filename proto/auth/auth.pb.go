@@ -972,9 +972,7 @@ func (x *ForgotPasswordResponse) GetSuccess() bool {
 // Reset password
 type ResetPasswordRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	NewPassword   string                 `protobuf:"bytes,2,opt,name=new_password,json=newPassword,proto3" json:"new_password,omitempty"`
-	Token         string                 `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"` // из письма
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"` // из письма
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1009,20 +1007,6 @@ func (*ResetPasswordRequest) Descriptor() ([]byte, []int) {
 	return file_auth_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *ResetPasswordRequest) GetEmail() string {
-	if x != nil {
-		return x.Email
-	}
-	return ""
-}
-
-func (x *ResetPasswordRequest) GetNewPassword() string {
-	if x != nil {
-		return x.NewPassword
-	}
-	return ""
-}
-
 func (x *ResetPasswordRequest) GetToken() string {
 	if x != nil {
 		return x.Token
@@ -1033,6 +1017,7 @@ func (x *ResetPasswordRequest) GetToken() string {
 type ResetPasswordResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	NewPassword   string                 `protobuf:"bytes,2,opt,name=new_password,json=newPassword,proto3" json:"new_password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1072,6 +1057,13 @@ func (x *ResetPasswordResponse) GetSuccess() bool {
 		return x.Success
 	}
 	return false
+}
+
+func (x *ResetPasswordResponse) GetNewPassword() string {
+	if x != nil {
+		return x.NewPassword
+	}
+	return ""
 }
 
 type UserLoginHistory struct {
@@ -1627,13 +1619,12 @@ const file_auth_proto_rawDesc = "" +
 	"\x15ForgotPasswordRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\"2\n" +
 	"\x16ForgotPasswordResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"e\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\",\n" +
 	"\x14ResetPasswordRequest\x12\x14\n" +
-	"\x05email\x18\x01 \x01(\tR\x05email\x12!\n" +
-	"\fnew_password\x18\x02 \x01(\tR\vnewPassword\x12\x14\n" +
-	"\x05token\x18\x03 \x01(\tR\x05token\"1\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"T\n" +
 	"\x15ResetPasswordResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"\xe2\x01\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12!\n" +
+	"\fnew_password\x18\x02 \x01(\tR\vnewPassword\"\xe2\x01\n" +
 	"\x10UserLoginHistory\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1d\n" +

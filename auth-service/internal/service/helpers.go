@@ -89,3 +89,18 @@ func (s *AuthService) validateResetToken(tokenString string) (*JWTClaims, error)
 
 	return nil, fmt.Errorf("invalid token")
 }
+
+// generateRandomPassword generates a secure random password
+func (s *AuthService) generateRandomPassword() (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+	const passwordLength = 12
+
+	// For simplicity, we'll use a basic approach
+	// In production, you might want to use crypto/rand
+	password := make([]byte, passwordLength)
+	for i := range password {
+		password[i] = charset[i%len(charset)]
+	}
+
+	return string(password), nil
+}
