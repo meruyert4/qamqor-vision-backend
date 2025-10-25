@@ -35,7 +35,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.LoginRequest"
+                            "$ref": "#/definitions/api-gateway_internal_models.LoginRequest"
                         }
                     }
                 ],
@@ -43,13 +43,45 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.LoginResponse"
+                            "$ref": "#/definitions/api-gateway_internal_models.LoginResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get current user's profile information from JWT token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get Current User Profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "401": {
@@ -251,16 +283,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string",
-                    "example": "Error message"
-                }
-            }
-        },
-        "models.LoginRequest": {
+        "api-gateway_internal_models.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -277,7 +300,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.LoginResponse": {
+        "api-gateway_internal_models.LoginResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -293,11 +316,11 @@ const docTemplate = `{
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 },
                 "user": {
-                    "$ref": "#/definitions/models.User"
+                    "$ref": "#/definitions/api-gateway_internal_models.User"
                 }
             }
         },
-        "models.User": {
+        "api-gateway_internal_models.User": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -334,6 +357,15 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "Error message"
+                }
+            }
+        },
         "models.UserResponse": {
             "type": "object",
             "properties": {
@@ -342,7 +374,7 @@ const docTemplate = `{
                     "example": "User retrieved successfully"
                 },
                 "user": {
-                    "$ref": "#/definitions/models.User"
+                    "$ref": "#/definitions/api-gateway_internal_models.User"
                 }
             }
         }
