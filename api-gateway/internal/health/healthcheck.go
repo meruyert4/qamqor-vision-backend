@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	pb "github.com/meruyert4/qamqor-vision-backend/proto/auth"
+	pbAuth "github.com/meruyert4/qamqor-vision-backend/proto/auth"
 
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
@@ -15,8 +15,7 @@ import (
 )
 
 type HealthChecker struct {
-	authServiceAddr string
-	databaseURL     string
+	checks map[string]func() ServiceInfo
 }
 
 type HealthStatus struct {
@@ -33,35 +32,47 @@ type ServiceInfo struct {
 }
 
 func NewHealthChecker(authServiceAddr, databaseURL string) *HealthChecker {
-	return &HealthChecker{
-		authServiceAddr: authServiceAddr,
-		databaseURL:     databaseURL,
-	}
+	h := &HealthChecker{checks: make(map[string]func() ServiceInfo)}
+
+	// 1) api gateway
+	h.Register("api-gateway", checkAPIGateway)
+
+	// 2) auth-db
+	h.Register("auth-db", func() ServiceInfo {
+		return checkDatabase(databaseURL)
+	})
+
+	// 3) auth grpc service
+	h.Register("auth-service", func() ServiceInfo {
+		return checkGRPCService("auth-service", "localhost:50051", func(conn *grpc.ClientConn) error {
+			client := pbAuth.NewAuthServiceClient(conn)
+			_, err := client.GetUser(context.Background(), &pbAuth.GetUserRequest{Id: "test-id"})
+			return err
+		})
+	})
+
+	return h
+}
+
+func (h *HealthChecker) Register(name string, fn func() ServiceInfo) {
+	h.checks[name] = fn
 }
 
 func (h *HealthChecker) CheckAllServices() HealthStatus {
 	now := time.Now()
 	services := make(map[string]ServiceInfo)
+	overall := true
 
-	// Check Auth Service (gRPC)
-	authStatus := h.checkAuthService()
-	services["auth-service"] = authStatus
-
-	// Check Database
-	dbStatus := h.checkDatabase()
-	services["auth-db"] = dbStatus
-
-	// Check API Gateway (self)
-	apiStatus := h.checkAPIGateway()
-	services["api-gateway"] = apiStatus
-
-	// Determine overall health
-	overallHealthy := authStatus.Status == "healthy" &&
-		dbStatus.Status == "healthy" &&
-		apiStatus.Status == "healthy"
+	for name, fn := range h.checks {
+		info := fn()
+		services[name] = info
+		if info.Status != "healthy" {
+			overall = false
+		}
+	}
 
 	status := "unhealthy"
-	if overallHealthy {
+	if overall {
 		status = "healthy"
 	}
 
@@ -69,170 +80,84 @@ func (h *HealthChecker) CheckAllServices() HealthStatus {
 		Status:    status,
 		Timestamp: now.Format(time.RFC3339),
 		Services:  services,
-		Overall:   overallHealthy,
+		Overall:   overall,
 	}
 }
 
-func (h *HealthChecker) checkAuthService() ServiceInfo {
+// grpc service checker
+func checkGRPCService(name, addr string, healthFunc func(conn *grpc.ClientConn) error) ServiceInfo {
 	start := time.Now()
 
-	// Create gRPC connection
-	conn, err := grpc.Dial(h.authServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return ServiceInfo{
 			Status:  "unhealthy",
-			Message: fmt.Sprintf("Failed to connect to auth service: %v", err),
+			Message: fmt.Sprintf("%s: connection failed: %v", name, err),
 		}
 	}
 	defer conn.Close()
 
-	// Create client and make a test call
-	client := pb.NewAuthServiceClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Try to get a user (this will fail but we can check if the service responds)
-	_, err = client.GetUser(ctx, &pb.GetUserRequest{Id: "e7358487-73e6-414f-81cd-11a316c832f9"})
+	err = healthFunc(conn)
 	responseTime := time.Since(start).String()
 
-	// We expect this to fail with "user not found" or similar, but the service should respond
 	if err != nil {
-		// Check if it's a gRPC error (service is responding)
-		if _, ok := err.(interface{ Code() string }); ok {
-			// Service is responding, just user not found
-			return ServiceInfo{
-				Status:       "healthy",
-				Message:      "Auth service is responding",
-				ResponseTime: responseTime,
-			}
-		}
-		// Check if it's a context timeout or connection error
 		if ctx.Err() == context.DeadlineExceeded {
-			return ServiceInfo{
-				Status:  "unhealthy",
-				Message: "Auth service timeout",
-			}
+			return ServiceInfo{"unhealthy", fmt.Sprintf("%s timeout", name), ""}
 		}
-		// Other gRPC errors might indicate service issues
-		return ServiceInfo{
-			Status:  "unhealthy",
-			Message: fmt.Sprintf("Auth service error: %v", err),
-		}
+		return ServiceInfo{"healthy", fmt.Sprintf("%s is responding", name), responseTime}
 	}
 
-	return ServiceInfo{
-		Status:       "healthy",
-		Message:      "Auth service is responding",
-		ResponseTime: responseTime,
-	}
+	return ServiceInfo{"healthy", fmt.Sprintf("%s OK", name), responseTime}
 }
 
-func (h *HealthChecker) checkDatabase() ServiceInfo {
+// postgew database checker
+func checkDatabase(dsn string) ServiceInfo {
 	start := time.Now()
 
-	// Connect to database
-	db, err := sql.Open("postgres", h.databaseURL)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		return ServiceInfo{
-			Status:  "unhealthy",
-			Message: fmt.Sprintf("Failed to connect to database: %v", err),
-		}
+		return ServiceInfo{"unhealthy", fmt.Sprintf("DB connect error: %v", err), ""}
 	}
 	defer db.Close()
 
-	// Set connection timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Test database connection
-	err = db.PingContext(ctx)
+	if err = db.PingContext(ctx); err != nil {
+		return ServiceInfo{"unhealthy", fmt.Sprintf("DB ping failed: %v", err), ""}
+	}
+
+	responseTime := time.Since(start).String()
+	return ServiceInfo{"healthy", "Database OK", responseTime}
+}
+
+// api gateway checker
+func checkAPIGateway() ServiceInfo {
+	start := time.Now()
+
+	// Simple check if port 8080 is responding
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+
+	resp, err := client.Get("http://localhost:8080")
 	responseTime := time.Since(start).String()
 
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return ServiceInfo{
-				Status:  "unhealthy",
-				Message: "Database connection timeout",
-			}
-		}
 		return ServiceInfo{
-			Status:  "unhealthy",
-			Message: fmt.Sprintf("Database ping failed: %v", err),
+			Status:       "unhealthy",
+			Message:      "API Gateway port 8080 not responding",
+			ResponseTime: responseTime,
 		}
 	}
-
-	// Test a simple query
-	var result int
-	err = db.QueryRowContext(ctx, "SELECT 1").Scan(&result)
-	if err != nil {
-		return ServiceInfo{
-			Status:  "unhealthy",
-			Message: fmt.Sprintf("Database query failed: %v", err),
-		}
-	}
+	defer resp.Body.Close()
 
 	return ServiceInfo{
 		Status:       "healthy",
-		Message:      "Database is responding",
+		Message:      "API Gateway port 8080 is responding",
 		ResponseTime: responseTime,
-	}
-}
-
-func (h *HealthChecker) checkAPIGateway() ServiceInfo {
-	// API Gateway is self-checking, so if we reach this point, it's healthy
-	return ServiceInfo{
-		Status:  "healthy",
-		Message: "API Gateway is running",
-	}
-}
-
-// HTTP handler for health check endpoint
-func (h *HealthChecker) HealthCheckHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		status := h.CheckAllServices()
-
-		// Set appropriate HTTP status code
-		httpStatus := http.StatusOK
-		if !status.Overall {
-			httpStatus = http.StatusServiceUnavailable
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(httpStatus)
-
-		// Simple JSON response (you might want to use json.Marshal for more complex responses)
-		fmt.Fprintf(w, `{
-			"status": "%s",
-			"timestamp": "%s",
-			"overall_healthy": %t,
-			"services": {
-				"auth-service": {
-					"status": "%s",
-					"message": "%s",
-					"response_time": "%s"
-				},
-				"auth-db": {
-					"status": "%s",
-					"message": "%s",
-					"response_time": "%s"
-				},
-				"api-gateway": {
-					"status": "%s",
-					"message": "%s"
-				}
-			}
-		}`,
-			status.Status,
-			status.Timestamp,
-			status.Overall,
-			status.Services["auth-service"].Status,
-			status.Services["auth-service"].Message,
-			status.Services["auth-service"].ResponseTime,
-			status.Services["auth-db"].Status,
-			status.Services["auth-db"].Message,
-			status.Services["auth-db"].ResponseTime,
-			status.Services["api-gateway"].Status,
-			status.Services["api-gateway"].Message,
-		)
 	}
 }

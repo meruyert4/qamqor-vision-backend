@@ -1,12 +1,6 @@
 basePath: /
 definitions:
-  models.ErrorResponse:
-    properties:
-      error:
-        example: Error message
-        type: string
-    type: object
-  models.LoginRequest:
+  api-gateway_internal_models.LoginRequest:
     properties:
       email:
         example: user@example.com
@@ -18,7 +12,7 @@ definitions:
     - email
     - password
     type: object
-  models.LoginResponse:
+  api-gateway_internal_models.LoginResponse:
     properties:
       access_token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -30,9 +24,9 @@ definitions:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
       user:
-        $ref: '#/definitions/models.User'
+        $ref: '#/definitions/api-gateway_internal_models.User'
     type: object
-  models.User:
+  api-gateway_internal_models.User:
     properties:
       created_at:
         example: "2023-01-01T00:00:00Z"
@@ -59,13 +53,19 @@ definitions:
         example: user
         type: string
     type: object
+  models.ErrorResponse:
+    properties:
+      error:
+        example: Error message
+        type: string
+    type: object
   models.UserResponse:
     properties:
       message:
         example: User retrieved successfully
         type: string
       user:
-        $ref: '#/definitions/models.User'
+        $ref: '#/definitions/api-gateway_internal_models.User'
     type: object
 host: localhost:8080
 info:
@@ -85,14 +85,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.LoginRequest'
+          $ref: '#/definitions/api-gateway_internal_models.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.LoginResponse'
+            $ref: '#/definitions/api-gateway_internal_models.LoginResponse'
         "400":
           description: Bad Request
           schema:
@@ -230,4 +230,24 @@ paths:
       summary: Get Recent Login History
       tags:
       - Users
+  /api/v1/users/me:
+    get:
+      description: Get current user's profile information from JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Current User Profile
+      tags:
+      - Authentication
 swagger: "2.0"
