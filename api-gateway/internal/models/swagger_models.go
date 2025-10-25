@@ -20,6 +20,7 @@ type RegisterRequest struct {
 	LastName                   string  `json:"last_name" binding:"required" example:"Doe"`
 	PhoneNumber                *string `json:"phone_number,omitempty" example:"+1234567890"`
 	PushNotificationPermission bool    `json:"push_notification_permission" example:"true"`
+	Role                       string  `json:"role,omitempty" example:"user"`
 }
 
 // RegisterResponse represents the response for user registration
@@ -61,6 +62,7 @@ type UpdateUserRequest struct {
 	LastName                   *string `json:"last_name,omitempty" example:"Smith"`
 	PhoneNumber                *string `json:"phone_number,omitempty" example:"+1234567890"`
 	PushNotificationPermission *bool   `json:"push_notification_permission,omitempty" example:"true"`
+	Role                       *string `json:"role,omitempty" example:"manager"`
 }
 
 // ChangePasswordRequest represents the request body for changing password

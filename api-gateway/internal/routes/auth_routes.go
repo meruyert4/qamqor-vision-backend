@@ -12,17 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Register godoc
-// @Summary User Registration
-// @Description Register a new user with email, password, and personal information
-// @Tags Authentication
-// @Accept json
-// @Produce json
-// @Param request body models.RegisterRequest true "User registration data"
-// @Success 201 {object} models.RegisterResponse
-// @Failure 400 {object} models.ErrorResponse
-// @Router /api/v1/register [post]
-
 type AuthRoutes struct {
 	authClient *client.AuthClient
 }
@@ -33,12 +22,26 @@ func NewAuthRoutes(authClient *client.AuthClient) *AuthRoutes {
 	}
 }
 
+// @Summary User Registration
+// @Description Register a new user with email, password, and personal information. Role field is optional and defaults to 'user' if not provided. Valid roles: admin, user, manager, operator, analyst
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body models.RegisterRequest true "User registration data"
+// @Success 201 {object} models.RegisterResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Router /api/v1/register [post]
 func (r *AuthRoutes) Register(c *gin.Context) {
 	var req models.RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	var rolePtr *string
+	if req.Role != "" {
+		rolePtr = &req.Role
 	}
 
 	grpcReq := &pb.CreateUserRequest{
@@ -48,6 +51,7 @@ func (r *AuthRoutes) Register(c *gin.Context) {
 		LastName:                   req.LastName,
 		PhoneNumber:                req.PhoneNumber,
 		PushNotificationPermission: req.PushNotificationPermission,
+		Role:                       rolePtr,
 	}
 
 	resp, err := r.authClient.CreateUser(c.Request.Context(), grpcReq)
@@ -133,6 +137,19 @@ func (r *AuthRoutes) GetUser(c *gin.Context) {
 	})
 }
 
+// @Summary Update User
+// @Description Update user information. All fields are optional. Role field must be one of: admin, user, manager, operator, analyst
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "User ID"
+// @Param request body models.UpdateUserRequest true "User update data"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Router /api/v1/users/{id} [put]
 func (r *AuthRoutes) UpdateUser(c *gin.Context) {
 	userID := c.Param("id")
 	if userID == "" {
@@ -140,13 +157,7 @@ func (r *AuthRoutes) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		Email                      *string `json:"email,omitempty"`
-		FirstName                  *string `json:"first_name,omitempty"`
-		LastName                   *string `json:"last_name,omitempty"`
-		PhoneNumber                *string `json:"phone_number,omitempty"`
-		PushNotificationPermission *bool   `json:"push_notification_permission,omitempty"`
-	}
+	var req models.UpdateUserRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -160,6 +171,7 @@ func (r *AuthRoutes) UpdateUser(c *gin.Context) {
 		LastName:                   req.LastName,
 		PhoneNumber:                req.PhoneNumber,
 		PushNotificationPermission: req.PushNotificationPermission,
+		Role:                       req.Role,
 	}
 
 	resp, err := r.authClient.UpdateUser(c.Request.Context(), grpcReq)
@@ -175,6 +187,18 @@ func (r *AuthRoutes) UpdateUser(c *gin.Context) {
 	})
 }
 
+// @Summary Change Password
+// @Description Change user password
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "User ID"
+// @Param request body models.ChangePasswordRequest true "Password change data"
+// @Success 200 {object} models.SuccessResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Router /api/v1/users/{id}/password [put]
 func (r *AuthRoutes) ChangePassword(c *gin.Context) {
 	userID := c.Param("id")
 	if userID == "" {
@@ -211,6 +235,17 @@ func (r *AuthRoutes) ChangePassword(c *gin.Context) {
 	})
 }
 
+// @Summary Delete User
+// @Description Delete user account. Users can only delete their own account. Admins can delete any user.
+// @Tags Users
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "User ID"
+// @Success 200 {object} models.SuccessResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Router /api/v1/users/{id} [delete]
 func (r *AuthRoutes) DeleteUser(c *gin.Context) {
 	userID := c.Param("id")
 	if userID == "" {
@@ -235,7 +270,15 @@ func (r *AuthRoutes) DeleteUser(c *gin.Context) {
 	})
 }
 
-// VerifyEmail handles email verification via token (public route)
+// @Summary Verify Email
+// @Description Verify user email with token from registration email
+// @Tags Authentication
+// @Produce json
+// @Param token query string true "Verification token"
+// @Success 200 {object} models.SuccessResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Router /api/v1/verify [get]
 func (r *AuthRoutes) VerifyEmail(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
@@ -290,6 +333,15 @@ func (r *AuthRoutes) VerifyUser(c *gin.Context) {
 	})
 }
 
+// @Summary Forgot Password
+// @Description Request password reset email
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body models.ForgotPasswordRequest true "Email address"
+// @Success 200 {object} models.SuccessResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Router /api/v1/forgot-password [post]
 func (r *AuthRoutes) ForgotPassword(c *gin.Context) {
 	var req struct {
 		Email string `json:"email" binding:"required,email"`
@@ -317,6 +369,16 @@ func (r *AuthRoutes) ForgotPassword(c *gin.Context) {
 	})
 }
 
+// @Summary Reset Password
+// @Description Reset password using token from email
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body models.ResetPasswordRequest true "Password reset data"
+// @Success 200 {object} models.SuccessResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Router /api/v1/reset-password [post]
 func (r *AuthRoutes) ResetPassword(c *gin.Context) {
 	var req struct {
 		Email       string `json:"email" binding:"required,email"`

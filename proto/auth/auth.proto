@@ -40,6 +40,7 @@ message CreateUserRequest {
     string last_name = 4;
     optional string phone_number = 5;
     bool push_notification_permission = 6;
+    optional string role = 7;
 }
 
 message CreateUserResponse {
@@ -75,6 +76,7 @@ message UpdateUserRequest {
     optional string last_name = 4;
     optional string phone_number = 5;
     optional bool push_notification_permission = 6;
+    optional string role = 7;
 }
 
 message UpdateUserResponse {

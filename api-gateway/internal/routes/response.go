@@ -45,8 +45,8 @@ func HandleAuthError(err error) (int, ErrorResponse) {
 			}
 		case codes.Unauthenticated:
 			return http.StatusUnauthorized, ErrorResponse{
-				Error:   "Invalid credentials",
-				Message: "The provided email or password is incorrect",
+				Error:   "Authentication required",
+				Message: message,
 			}
 		case codes.PermissionDenied:
 			return http.StatusForbidden, ErrorResponse{

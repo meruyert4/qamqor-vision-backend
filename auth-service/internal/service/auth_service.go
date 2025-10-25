@@ -35,6 +35,10 @@ func (s *AuthService) CreateUser(req *models.CreateUserRequest) (*models.User, e
 	if existingUser != nil {
 		return nil, ErrUserAlreadyExists
 	}
+	// Set default role if not provided
+	if req.Role == "" {
+		req.Role = models.GetDefaultRole()
+	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -166,6 +170,12 @@ func (s *AuthService) UpdateUser(id string, req *models.UpdateUserRequest) (*mod
 		"phone_number":                 req.PhoneNumber,
 		"push_notification_permission": req.PushNotificationPermission,
 	}
+
+	// Add role if provided
+	if req.Role != nil {
+		updates["role"] = *req.Role
+	}
+
 	return s.userRepo.UpdateUser(id, updates)
 }
 

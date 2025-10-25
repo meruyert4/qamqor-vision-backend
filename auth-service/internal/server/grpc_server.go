@@ -10,6 +10,7 @@ import (
 
 	"auth-service/config"
 	"auth-service/internal/models"
+	"auth-service/internal/server/validation"
 	"auth-service/internal/service"
 
 	pb "github.com/meruyert4/qamqor-vision-backend/proto/auth"
@@ -64,6 +65,43 @@ func (s *GRPCServer) getUserAgent(ctx context.Context) *string {
 	return nil
 }
 
+// getAuthToken extracts the authorization token from gRPC context metadata
+func (s *GRPCServer) getAuthToken(ctx context.Context) (string, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return "", fmt.Errorf("no metadata found")
+	}
+
+	authHeaders := md.Get("authorization")
+	if len(authHeaders) == 0 {
+		return "", fmt.Errorf("authorization header not found")
+	}
+
+	token := authHeaders[0]
+	token = strings.TrimPrefix(token, "Bearer ")
+	return token, nil
+}
+
+// getCurrentUser extracts the current user from the JWT token in the gRPC context
+func (s *GRPCServer) getCurrentUser(ctx context.Context) (*models.User, error) {
+	token, err := s.getAuthToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	userID, _, err := s.authService.GetUserFromToken(token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %w", err)
+	}
+
+	user, err := s.authService.GetUser(userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	return user, nil
+}
+
 func (s *GRPCServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
 	createReq := &models.CreateUserRequest{
 		Email:                      req.Email,
@@ -72,10 +110,11 @@ func (s *GRPCServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) 
 		LastName:                   req.LastName,
 		PhoneNumber:                req.PhoneNumber,
 		PushNotificationPermission: req.PushNotificationPermission,
+		Role:                       getStringValue(req.Role),
 	}
 
 	// Validate the request
-	if validationErrors := ValidateStruct(createReq); len(validationErrors) > 0 {
+	if validationErrors := validation.ValidateStruct(createReq); len(validationErrors) > 0 {
 		// Format validation errors for gRPC response
 		var errorMessages []string
 		for _, err := range validationErrors {
@@ -105,7 +144,7 @@ func (s *GRPCServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	}
 
 	// Validate the request
-	if validationErrors := ValidateStruct(loginReq); len(validationErrors) > 0 {
+	if validationErrors := validation.ValidateStruct(loginReq); len(validationErrors) > 0 {
 		// Format validation errors for gRPC response
 		var errorMessages []string
 		for _, err := range validationErrors {
@@ -148,7 +187,7 @@ func (s *GRPCServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.G
 	}
 
 	// Validate the request
-	if validationErrors := ValidateStruct(getReq); len(validationErrors) > 0 {
+	if validationErrors := validation.ValidateStruct(getReq); len(validationErrors) > 0 {
 		// Format validation errors for gRPC response
 		var errorMessages []string
 		for _, err := range validationErrors {
@@ -156,6 +195,17 @@ func (s *GRPCServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.G
 		}
 		formattedError := strings.Join(errorMessages, "; ")
 		return nil, status.Errorf(codes.InvalidArgument, formattedError)
+	}
+
+	// Get current user from token
+	currentUser, err := s.getCurrentUser(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "authentication required: %v", err)
+	}
+
+	// Non-admin users can only access their own data
+	if currentUser.Role != models.AdminRole && currentUser.ID != req.Id {
+		return nil, status.Errorf(codes.PermissionDenied, "you don't have permission to access this user's data")
 	}
 
 	user, err := s.authService.GetUser(req.Id)
@@ -184,10 +234,11 @@ func (s *GRPCServer) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) 
 		LastName:                   req.LastName,
 		PhoneNumber:                req.PhoneNumber,
 		PushNotificationPermission: req.PushNotificationPermission,
+		Role:                       req.Role,
 	}
 
 	// Validate the request
-	if validationErrors := ValidateStruct(updateReq); len(validationErrors) > 0 {
+	if validationErrors := validation.ValidateStruct(updateReq); len(validationErrors) > 0 {
 		// Format validation errors for gRPC response
 		var errorMessages []string
 		for _, err := range validationErrors {
@@ -223,7 +274,7 @@ func (s *GRPCServer) ChangePassword(ctx context.Context, req *pb.ChangePasswordR
 	}
 
 	// Validate the request
-	if validationErrors := ValidateStruct(changeReq); len(validationErrors) > 0 {
+	if validationErrors := validation.ValidateStruct(changeReq); len(validationErrors) > 0 {
 		// Format validation errors for gRPC response
 		var errorMessages []string
 		for _, err := range validationErrors {
@@ -247,7 +298,7 @@ func (s *GRPCServer) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) 
 	}
 
 	// Validate the request
-	if validationErrors := ValidateStruct(deleteReq); len(validationErrors) > 0 {
+	if validationErrors := validation.ValidateStruct(deleteReq); len(validationErrors) > 0 {
 		// Format validation errors for gRPC response
 		var errorMessages []string
 		for _, err := range validationErrors {
@@ -257,7 +308,18 @@ func (s *GRPCServer) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, formattedError)
 	}
 
-	err := s.authService.DeleteUser(req.Id)
+	// Get current user from token
+	currentUser, err := s.getCurrentUser(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "authentication required: %v", err)
+	}
+
+	// Non-admin users can only delete their own account
+	if currentUser.Role != models.AdminRole && currentUser.ID != req.Id {
+		return nil, status.Errorf(codes.PermissionDenied, "you don't have permission to delete this user")
+	}
+
+	err = s.authService.DeleteUser(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete user: %v", err)
 	}
@@ -271,7 +333,7 @@ func (s *GRPCServer) VerifyUser(ctx context.Context, req *pb.VerifyUserRequest) 
 	}
 
 	// Validate the request
-	if validationErrors := ValidateStruct(verifyReq); len(validationErrors) > 0 {
+	if validationErrors := validation.ValidateStruct(verifyReq); len(validationErrors) > 0 {
 		// Format validation errors for gRPC response
 		var errorMessages []string
 		for _, err := range validationErrors {
@@ -295,7 +357,7 @@ func (s *GRPCServer) ForgotPassword(ctx context.Context, req *pb.ForgotPasswordR
 	}
 
 	// Validate the request
-	if validationErrors := ValidateStruct(forgotReq); len(validationErrors) > 0 {
+	if validationErrors := validation.ValidateStruct(forgotReq); len(validationErrors) > 0 {
 		// Format validation errors for gRPC response
 		var errorMessages []string
 		for _, err := range validationErrors {
@@ -321,7 +383,7 @@ func (s *GRPCServer) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(resetReq); len(errors) > 0 {
+	if errors := validation.ValidateStruct(resetReq); len(errors) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
 	}
 
@@ -370,7 +432,7 @@ func (s *GRPCServer) GetUserLoginHistory(ctx context.Context, req *pb.GetUserLog
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(historyReq); len(errors) > 0 {
+	if errors := validation.ValidateStruct(historyReq); len(errors) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
 	}
 
@@ -403,7 +465,7 @@ func (s *GRPCServer) GetRecentLoginHistory(ctx context.Context, req *pb.GetRecen
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(recentReq); len(errors) > 0 {
+	if errors := validation.ValidateStruct(recentReq); len(errors) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
 	}
 
@@ -437,7 +499,7 @@ func (s *GRPCServer) GetFailedLoginAttempts(ctx context.Context, req *pb.GetFail
 	}
 
 	// Validate the request
-	if errors := ValidateStruct(failedReq); len(errors) > 0 {
+	if errors := validation.ValidateStruct(failedReq); len(errors) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "validation failed: %v", errors)
 	}
 
